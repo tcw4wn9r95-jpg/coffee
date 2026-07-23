@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadSettings, saveSettings, MODEL_OPTIONS } from "../lib/settings";
 import { validateKey } from "../lib/anthropic";
+import { getLearningStats, type LearningStats } from "../lib/palate";
 import { exportAll, importAll, clearAll, type BackupBundle } from "../lib/db";
 import { useToast } from "../components/Toast";
-import { BackIcon } from "../components/Icons";
+import { BackIcon, SparkIcon } from "../components/Icons";
 
 export function Settings() {
   const nav = useNavigate();
@@ -12,7 +13,12 @@ export function Settings() {
   const [s, setS] = useState(loadSettings());
   const [checking, setChecking] = useState(false);
   const [keyStatus, setKeyStatus] = useState<string | null>(null);
+  const [stats, setStats] = useState<LearningStats | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    getLearningStats().then(setStats);
+  }, []);
 
   function persist(next: typeof s) {
     setS(next);
@@ -101,6 +107,36 @@ export function Settings() {
       <p className="faint" style={{ fontSize: 12, marginTop: 8 }}>
         Your key is stored only on this device and sent directly to Anthropic.
       </p>
+
+      <h2 style={{ fontSize: 18, marginTop: 26 }}>What Bruna has learned</h2>
+      <div className="card card-pad" style={{ marginTop: 12 }}>
+        <div className="row" style={{ gap: 11, alignItems: "flex-start" }}>
+          <span className="learning-badge-icon">
+            <SparkIcon size={18} />
+          </span>
+          <div style={{ flex: 1 }}>
+            {stats && stats.tastings > 0 ? (
+              <p style={{ fontSize: 14.5, lineHeight: 1.5 }}>
+                Learning from <strong>{stats.tastings}</strong> tasting
+                {stats.tastings === 1 ? "" : "s"}
+                {stats.loved > 0 ? (
+                  <>
+                    {" "}(<strong>{stats.loved}</strong> you loved)
+                  </>
+                ) : null}{" "}
+                across <strong>{stats.coffees}</strong> coffee
+                {stats.coffees === 1 ? "" : "s"}. Each tasting sharpens the grind
+                and settings Bruna suggests next.
+              </p>
+            ) : (
+              <p style={{ fontSize: 14.5, lineHeight: 1.5 }} className="muted">
+                Nothing yet. Run a guided tasting on a shot and Bruna starts
+                learning what you like — then folds it into future recommendations.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
 
       <h2 style={{ fontSize: 18, marginTop: 26 }}>Gear</h2>
       <div className="card card-pad stack" style={{ marginTop: 12 }}>

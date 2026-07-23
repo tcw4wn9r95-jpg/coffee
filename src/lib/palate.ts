@@ -92,3 +92,23 @@ export async function getPalateBrief(): Promise<string> {
 export function lovedCount(shots: Shot[]): number {
   return shots.filter((s) => s.flavor.verdict === "love").length;
 }
+
+export interface LearningStats {
+  tastings: number; // shots rated with a verdict
+  loved: number; // shots verdict === "love"
+  coffees: number;
+}
+
+/** Counts that power the "Bruna is learning your taste" indicator. */
+export async function getLearningStats(): Promise<LearningStats> {
+  try {
+    const [coffees, shots] = await Promise.all([listCoffees(), allShots()]);
+    return {
+      tastings: shots.filter((s) => s.flavor.verdict !== null).length,
+      loved: lovedCount(shots),
+      coffees: coffees.length,
+    };
+  } catch {
+    return { tastings: 0, loved: 0, coffees: 0 };
+  }
+}
