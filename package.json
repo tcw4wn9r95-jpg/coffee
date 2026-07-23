@@ -1,0 +1,27 @@
+{
+  "name": "bruna-coffee",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Bruna — a warm, Nordic espresso dial-in companion for the Fellow Opus + Lelit Anna PL41EM.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "icons": "node scripts/gen-icons.mjs"
+  },
+  "dependencies": {
+    "idb": "^8.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.6",
+    "vite-plugin-pwa": "^0.20.5"
+  }
+}
