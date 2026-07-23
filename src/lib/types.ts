@@ -25,10 +25,18 @@ export interface Recipe {
 export interface CoffeeIdentity {
   name: string;
   roaster?: string;
-  origin?: string;
-  process?: string; // washed / natural / honey ...
+  origin?: string; // country
+  region?: string; // region / locality / washing station area
+  producer?: string; // farm / producer / co-op / washing station
+  variety?: string; // cultivar(s), e.g. "Heirloom", "Bourbon, Caturra", "Geisha"
+  species?: string; // Arabica / Robusta / blend
+  process?: string; // washed / natural / honey / anaerobic ...
+  altitude?: string; // e.g. "1,900–2,100 masl"
+  harvest?: string; // harvest year / season
   roastLevel?: RoastLevel;
+  roastDate?: string; // if printed on the bag
   tastingNotes?: string[];
+  decaf?: boolean;
 }
 
 export interface Coffee extends CoffeeIdentity {

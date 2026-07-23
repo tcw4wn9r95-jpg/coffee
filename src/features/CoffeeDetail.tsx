@@ -10,6 +10,7 @@ import {
 } from "../lib/db";
 import { suggestAdjustment } from "../lib/anthropic";
 import { baselineRecipe, formatGrind } from "../lib/gear";
+import { roastLabel } from "../lib/roast";
 import type { Advice, Coffee, FlavorProfile, Recipe, Shot } from "../lib/types";
 import { RecipeView } from "../components/RecipeView";
 import { RecipeEditor } from "../components/RecipeEditor";
@@ -92,6 +93,8 @@ export function CoffeeDetail() {
         </div>
       )}
 
+      <Provenance coffee={coffee} />
+
       {coffee.status === "locked" && coffee.lockedRecipe && (
         <LockedRecipe coffee={coffee} onRedial={() => redial(coffee, setCoffee, refresh, toast)} />
       )}
@@ -168,6 +171,49 @@ async function redial(
   setCoffee(updated);
   await startRound(updated, setCoffee, refresh, toast);
   toast("New dial-in started");
+}
+
+// ---------------------------------------------------------------------------
+function Provenance({ coffee }: { coffee: Coffee }) {
+  const items: { label: string; value?: string; wide?: boolean }[] = [
+    { label: "Origin", value: coffee.origin },
+    { label: "Region", value: coffee.region },
+    { label: "Producer", value: coffee.producer, wide: true },
+    { label: "Variety", value: coffee.variety, wide: true },
+    { label: "Process", value: coffee.process },
+    { label: "Altitude", value: coffee.altitude },
+    {
+      label: "Roast",
+      value:
+        coffee.roastLevel && coffee.roastLevel !== "unknown"
+          ? roastLabel(coffee.roastLevel)
+          : undefined,
+    },
+    { label: "Harvest", value: coffee.harvest },
+    { label: "Species", value: coffee.species },
+    { label: "Roasted", value: coffee.roastDate },
+  ].filter((i) => i.value);
+
+  if (items.length === 0) return null;
+
+  return (
+    <section style={{ marginTop: 20 }}>
+      <div className="eyebrow">Provenance</div>
+      <div className="prov">
+        {items.map((i) => (
+          <div className={`prov-item ${i.wide ? "wide" : ""}`} key={i.label}>
+            <div className="prov-label">{i.label}</div>
+            <div className="prov-value">{i.value}</div>
+          </div>
+        ))}
+      </div>
+      {coffee.decaf && (
+        <span className="badge badge-dialing" style={{ marginTop: 10 }}>
+          Decaf
+        </span>
+      )}
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------------------

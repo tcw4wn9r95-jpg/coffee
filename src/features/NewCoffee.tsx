@@ -27,6 +27,8 @@ export function NewCoffee() {
   const [identity, setIdentity] = useState<CoffeeIdentity>({ name: "", tastingNotes: [] });
   const [recipe, setRecipe] = useState<Recipe>(baselineRecipe());
   const [editing, setEditing] = useState(false);
+  const [moreDetails, setMoreDetails] = useState(false);
+  const setId = (patch: Partial<CoffeeIdentity>) => setIdentity((p) => ({ ...p, ...patch }));
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -89,13 +91,9 @@ export function NewCoffee() {
     if (pending) photoId = await putPhoto(pending.blob);
     const id = uid();
     const coffee: Coffee = {
-      id,
+      ...identity,
       name: identity.name.trim() || "Unknown coffee",
-      roaster: identity.roaster,
-      origin: identity.origin,
-      process: identity.process,
-      roastLevel: identity.roastLevel,
-      tastingNotes: identity.tastingNotes,
+      id,
       photoId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -140,23 +138,85 @@ export function NewCoffee() {
         <button className="link-btn row" onClick={() => setStage("input")}>
           <BackIcon size={18} /> Back
         </button>
-        <div className="eyebrow" style={{ marginTop: 14 }}>Starting recipe</div>
+        <div className="eyebrow" style={{ marginTop: 14 }}>What Bruna found</div>
         <h1 className="screen-title">{identity.name || "Your coffee"}</h1>
+        <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
+          Everything read from the bag — correct anything that's off.
+        </p>
 
         <label className="field">
           <span className="field-label">Coffee name</span>
-          <input className="input" value={identity.name} onChange={(e) => setIdentity({ ...identity, name: e.target.value })} />
+          <input className="input" value={identity.name} onChange={(e) => setId({ name: e.target.value })} />
         </label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <label className="field">
             <span className="field-label">Roaster</span>
-            <input className="input" value={identity.roaster || ""} onChange={(e) => setIdentity({ ...identity, roaster: e.target.value })} />
+            <input className="input" value={identity.roaster || ""} onChange={(e) => setId({ roaster: e.target.value })} />
+          </label>
+          <label className="field">
+            <span className="field-label">Roast level</span>
+            <select
+              className="input"
+              value={identity.roastLevel || "unknown"}
+              onChange={(e) => setId({ roastLevel: e.target.value as CoffeeIdentity["roastLevel"] })}
+            >
+              <option value="unknown">Unknown</option>
+              <option value="light">Light</option>
+              <option value="light-medium">Light-medium</option>
+              <option value="medium">Medium</option>
+              <option value="medium-dark">Medium-dark</option>
+              <option value="dark">Dark</option>
+            </select>
           </label>
           <label className="field">
             <span className="field-label">Origin</span>
-            <input className="input" value={identity.origin || ""} onChange={(e) => setIdentity({ ...identity, origin: e.target.value })} />
+            <input className="input" value={identity.origin || ""} onChange={(e) => setId({ origin: e.target.value })} />
+          </label>
+          <label className="field">
+            <span className="field-label">Region</span>
+            <input className="input" value={identity.region || ""} onChange={(e) => setId({ region: e.target.value })} />
+          </label>
+          <label className="field">
+            <span className="field-label">Variety</span>
+            <input className="input" value={identity.variety || ""} onChange={(e) => setId({ variety: e.target.value })} />
+          </label>
+          <label className="field">
+            <span className="field-label">Process</span>
+            <input className="input" value={identity.process || ""} onChange={(e) => setId({ process: e.target.value })} />
+          </label>
+          <label className="field">
+            <span className="field-label">Altitude</span>
+            <input className="input" value={identity.altitude || ""} onChange={(e) => setId({ altitude: e.target.value })} />
+          </label>
+          <label className="field">
+            <span className="field-label">Producer / farm</span>
+            <input className="input" value={identity.producer || ""} onChange={(e) => setId({ producer: e.target.value })} />
           </label>
         </div>
+
+        <button className="link-btn" style={{ marginTop: 14 }} onClick={() => setMoreDetails((s) => !s)}>
+          {moreDetails ? "Fewer details" : "More details"}
+        </button>
+        {moreDetails && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 10 }}>
+            <label className="field" style={{ marginTop: 0 }}>
+              <span className="field-label">Harvest</span>
+              <input className="input" value={identity.harvest || ""} onChange={(e) => setId({ harvest: e.target.value })} />
+            </label>
+            <label className="field" style={{ marginTop: 0 }}>
+              <span className="field-label">Species</span>
+              <input className="input" value={identity.species || ""} onChange={(e) => setId({ species: e.target.value })} />
+            </label>
+            <label className="field" style={{ marginTop: 0 }}>
+              <span className="field-label">Roast date</span>
+              <input className="input" value={identity.roastDate || ""} onChange={(e) => setId({ roastDate: e.target.value })} />
+            </label>
+            <label className="field row" style={{ marginTop: 0, alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={!!identity.decaf} onChange={(e) => setId({ decaf: e.target.checked })} />
+              <span className="field-label" style={{ margin: 0 }}>Decaf</span>
+            </label>
+          </div>
+        )}
 
         {identity.tastingNotes && identity.tastingNotes.length > 0 && (
           <div className="chips">

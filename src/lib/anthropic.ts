@@ -118,20 +118,37 @@ can't do (e.g. never give a numeric brew temperature — this machine has no PID
 
 ${GEAR_BRIEF}
 
-Read the photo of the coffee bag/label. Identify the coffee and infer a sensible
-STARTING espresso recipe for this exact gear. Lighter roasts generally want a
-finer grind, hotter workflow, and can take a slightly longer ratio; darker
-roasts want a touch coarser and cooler. Respect the 18–20 g basket.
+Read the photo of the coffee bag/label like a specialty barista cataloguing a
+new arrival. Study BOTH the front and any visible back-label text and pull as
+much provenance as you can — bean variety/cultivar, process, region and country,
+altitude, producer/farm/washing-station, harvest. Then infer a sensible STARTING
+espresso recipe for this exact gear. Lighter roasts generally want a finer grind,
+hotter workflow, and can take a slightly longer ratio; darker roasts want a touch
+coarser and cooler. Respect the 18–20 g basket.
+
+IMPORTANT: Fill every field you can actually read or confidently infer from the
+label. If a field is genuinely not shown and can't be inferred, return "" (empty)
+— do NOT invent farms, altitudes, varieties, or notes that aren't supported by
+the bag. Be specific when the label is specific (e.g. variety "SL28, SL34",
+process "washed", altitude "1,900–2,100 masl", region "Guji", origin "Ethiopia").
 
 Respond with STRICT JSON only, no prose, in exactly this shape:
 {
   "identity": {
-    "name": string,                // best guess of the coffee's name
-    "roaster": string,             // "" if unknown
-    "origin": string,              // "" if unknown
-    "process": string,             // washed/natural/honey/""
+    "name": string,                // the coffee's name as printed
+    "roaster": string,             // roaster / brand, "" if unknown
+    "origin": string,              // country of origin, "" if unknown
+    "region": string,              // region / locality / zone, "" if unknown
+    "producer": string,            // farm / producer / co-op / washing station, "" if unknown
+    "variety": string,             // cultivar(s), e.g. "Heirloom", "Bourbon, Caturra", "" if unknown
+    "species": string,             // "Arabica" | "Robusta" | "blend" | "" if unknown
+    "process": string,             // washed/natural/honey/anaerobic/..., "" if unknown
+    "altitude": string,            // e.g. "1,900–2,100 masl", "" if unknown
+    "harvest": string,             // harvest year/season, "" if unknown
     "roastLevel": "light"|"light-medium"|"medium"|"medium-dark"|"dark"|"unknown",
-    "tastingNotes": string[]       // notes printed on the bag, or inferred flavours
+    "roastDate": string,           // if printed, "" otherwise
+    "decaf": boolean,              // true only if the label says decaf
+    "tastingNotes": string[]       // flavour notes printed on the bag (preferred), else inferred
   },
   "recipe": {
     "grinderMacro": number,        // Opus outer click, 1-4 for espresso
@@ -160,7 +177,7 @@ export async function analyzeCoffeePhoto(
 ): Promise<CoffeeAnalysis> {
   const text = await callClaude({
     system: RECIPE_SYSTEM,
-    maxTokens: 1100,
+    maxTokens: 1500,
     content: [
       {
         type: "image",
@@ -168,24 +185,43 @@ export async function analyzeCoffeePhoto(
       },
       {
         type: "text",
-        text: "Identify this coffee and give my starting espresso recipe for my gear. JSON only.",
+        text: "Catalogue this coffee in full detail and give my starting espresso recipe for my gear. JSON only.",
       },
     ],
   });
   const parsed = extractJSON<{ identity: CoffeeIdentity; recipe: Partial<Recipe> }>(text);
-  const id = parsed.identity || ({ name: "Unknown coffee" } as CoffeeIdentity);
   return {
-    identity: {
-      name: id.name || "Unknown coffee",
-      roaster: id.roaster || undefined,
-      origin: id.origin || undefined,
-      process: id.process || undefined,
-      roastLevel: id.roastLevel || "unknown",
-      tastingNotes: Array.isArray(id.tastingNotes)
-        ? id.tastingNotes.filter(Boolean).slice(0, 8)
-        : [],
-    },
+    identity: normalizeIdentity(parsed.identity),
     recipe: coerceRecipe(parsed.recipe),
+  };
+}
+
+const str = (v: unknown): string | undefined => {
+  if (typeof v !== "string") return undefined;
+  const t = v.trim();
+  return t && t.toLowerCase() !== "unknown" ? t : undefined;
+};
+
+/** Trim, drop empty/"unknown" fields, and clamp arrays from a raw identity. */
+export function normalizeIdentity(raw: CoffeeIdentity | undefined): CoffeeIdentity {
+  const id = raw || ({ name: "Unknown coffee" } as CoffeeIdentity);
+  return {
+    name: str(id.name) || "Unknown coffee",
+    roaster: str(id.roaster),
+    origin: str(id.origin),
+    region: str(id.region),
+    producer: str(id.producer),
+    variety: str(id.variety),
+    species: str(id.species),
+    process: str(id.process),
+    altitude: str(id.altitude),
+    harvest: str(id.harvest),
+    roastLevel: id.roastLevel || "unknown",
+    roastDate: str(id.roastDate),
+    decaf: id.decaf === true || undefined,
+    tastingNotes: Array.isArray(id.tastingNotes)
+      ? id.tastingNotes.map((n) => str(n)).filter((n): n is string => !!n).slice(0, 10)
+      : [],
   };
 }
 

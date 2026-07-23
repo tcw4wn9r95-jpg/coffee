@@ -2,9 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { listCoffees } from "../lib/db";
 import type { Coffee } from "../lib/types";
-import { PhotoThumb } from "../components/PhotoThumb";
-import { RecipeLine } from "../components/RecipeView";
+import { CoffeeTile } from "../components/CoffeeTile";
 import { CupIcon, PlusIcon } from "../components/Icons";
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
 
 export function Home() {
   const nav = useNavigate();
@@ -15,6 +20,7 @@ export function Home() {
   }, []);
 
   const locked = coffees?.filter((c) => c.status === "locked").length ?? 0;
+  const rows = coffees ? chunk(coffees, 2) : [];
 
   return (
     <div className="screen">
@@ -29,14 +35,14 @@ export function Home() {
       </div>
 
       <h1 className="screen-title" style={{ marginTop: 22 }}>
-        Your shelf
+        The shelf
       </h1>
       <p className="lede">
         {coffees && coffees.length > 0
           ? `${coffees.length} ${coffees.length === 1 ? "coffee" : "coffees"}${
               locked ? ` · ${locked} dialed in` : ""
             }.`
-          : "Nothing here yet — add your first coffee to begin."}
+          : "Your collection, beautifully shelved. Add your first coffee to begin."}
       </p>
 
       {coffees === null ? (
@@ -44,47 +50,35 @@ export function Home() {
           <span className="spinner spinner-clay" />
         </div>
       ) : coffees.length === 0 ? (
-        <div className="empty">
-          <div className="empty-mark">
-            <CupIcon size={44} />
+        <div className="shelf" style={{ marginTop: 26 }}>
+          <div className="shelf-unit">
+            <div className="shelf-empty">
+              <div className="empty-mark">
+                <CupIcon size={40} />
+              </div>
+              <p style={{ maxWidth: "28ch", margin: "0 auto 18px" }}>
+                Snap a bag of coffee and Bruna will catalogue it and set your
+                starting espresso recipe.
+              </p>
+              <button className="btn btn-primary btn-lg" onClick={() => nav("/new")}>
+                <PlusIcon size={18} /> Add a coffee
+              </button>
+            </div>
+            <div className="shelf-ledge" />
           </div>
-          <p style={{ maxWidth: "30ch", margin: "0 auto 20px" }}>
-            Snap a bag of coffee and Bruna will read it and set your starting
-            espresso recipe.
-          </p>
-          <button className="btn btn-primary btn-lg" onClick={() => nav("/new")}>
-            <PlusIcon size={18} /> Add a coffee
-          </button>
         </div>
       ) : (
-        <div className="list">
-          {coffees.map((c) => (
-            <button
-              key={c.id}
-              className="coffee-card"
-              onClick={() => nav(`/coffee/${c.id}`)}
-            >
-              <PhotoThumb photoId={c.photoId} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="row-between">
-                  <div className="coffee-name" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {c.name}
-                  </div>
-                  <span className={`badge ${c.status === "locked" ? "badge-locked" : "badge-dialing"}`}>
-                    {c.status === "locked" ? "Dialed" : "Dialing"}
-                  </span>
-                </div>
-                <div className="coffee-sub" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {c.roaster ? `${c.roaster} · ` : ""}
-                  {c.origin || c.process || "espresso"}
-                </div>
-                {c.lockedRecipe && (
-                  <div className="coffee-sub" style={{ color: "var(--clay)" }}>
-                    <RecipeLine r={c.lockedRecipe} />
-                  </div>
-                )}
+        <div className="shelf">
+          {rows.map((row, r) => (
+            <div className="shelf-unit" key={r}>
+              <div className="shelf-row">
+                {row.map((c, i) => (
+                  <CoffeeTile key={c.id} coffee={c} index={r * 2 + i} />
+                ))}
+                {row.length === 1 && <span className="tile-spacer" />}
               </div>
-            </button>
+              <div className="shelf-ledge" />
+            </div>
           ))}
         </div>
       )}
