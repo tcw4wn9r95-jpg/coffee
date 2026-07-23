@@ -33,6 +33,9 @@ GRINDER — Fellow Opus (conical burr):
   ~1.5–3.0. The Opus is capable but marginal for espresso, so small moves
   matter — prefer changing the micro-ring (1 tick) before a whole macro click.
 - Express grind as "macro.micro", e.g. "2 · 1 tick" means macro 2, one micro tick finer.
+- PRECISION: state every grind change as a DIRECTION + MAGNITUDE — e.g. "1 micro-tick
+  finer (⅓ click, ~17 µm)" or "1 full click coarser (~50 µm)". Near the target, move a
+  single micro-tick at a time; never say "a bit finer/coarser" without the number.
 
 MACHINE — Lelit Anna PL41EM (base model, IMPORTANT: NO PID):
 - Single 250 ml brass boiler, 57 mm group, vibration pump, 3-way solenoid.
@@ -60,6 +63,26 @@ BASELINE (starting point, then adjust by taste):
   ratio). Bitter/harsh/dry = over-extracted → grind COARSER (or lower temp /
   shorter ratio). Change ONE variable at a time; keep dose & yield fixed while
   chasing grind, so taste changes are attributable.`;
+
+/** Absolute grind position in micro-ticks (higher = coarser; +micro = finer). */
+function gridPos(r: { grinderMacro: number; grinderMicro: number }): number {
+  return r.grinderMacro * 3 - r.grinderMicro;
+}
+
+/** Human magnitude of a grind move, e.g. "1 micro-tick (~17 µm)" or "1 click (~50 µm)". */
+export function magnitude(
+  from: { grinderMacro: number; grinderMicro: number },
+  to: { grinderMacro: number; grinderMicro: number }
+): string {
+  const d = Math.abs(gridPos(to) - gridPos(from));
+  if (d === 0) return "a hair";
+  const clicks = Math.floor(d / 3);
+  const micros = d % 3;
+  const parts: string[] = [];
+  if (clicks) parts.push(`${clicks} click${clicks > 1 ? "s" : ""}`);
+  if (micros) parts.push(`${micros} micro-tick${micros > 1 ? "s" : ""}`);
+  return `${parts.join(" + ")} (~${Math.round(d * OPUS.micronsPerMicro)} µm)`;
+}
 
 export function formatGrind(r: { grinderMacro: number; grinderMicro: number }): string {
   const micro = r.grinderMicro
@@ -116,34 +139,36 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
 
   // Priority 1: grind, driven by sour↔bitter balance and flow speed.
   if (sour > 12 || tooFast) {
-    // under-extracted → finer
+    // under-extracted → finer, by one micro-tick where possible
     if (next.grinderMicro < 2) next.grinderMicro += 1;
     else {
       next.grinderMicro = 0;
       next.grinderMacro = Math.max(OPUS.espressoMacroLow, next.grinderMacro - 1);
     }
+    const mag = magnitude(recipe, next);
     diagnosis =
       "Reads under-extracted (sour / thin / fast flow). Tightening the grind slows the water and pulls more sweetness and body.";
     changes.push({
       field: "Grind",
       from: formatGrind(recipe),
       to: formatGrind(next),
-      why: "Finer → slower flow → less sour, more sweetness.",
+      why: `${mag} finer → slower flow → less sour, more sweetness.`,
     });
   } else if (sour < -12 || tooSlow) {
-    // over-extracted → coarser
+    // over-extracted → coarser, by one micro-tick where possible
     if (next.grinderMicro > 0) next.grinderMicro -= 1;
     else {
       next.grinderMicro = 2;
       next.grinderMacro = Math.min(OPUS.espressoMacroHigh, next.grinderMacro + 1);
     }
+    const mag = magnitude(recipe, next);
     diagnosis =
       "Reads over-extracted (bitter / dry / slow flow). Opening the grind speeds the shot and pulls back the bitterness.";
     changes.push({
       field: "Grind",
       from: formatGrind(recipe),
       to: formatGrind(next),
-      why: "Coarser → faster flow → less bitter, cleaner finish.",
+      why: `${mag} coarser → faster flow → less bitter, cleaner finish.`,
     });
   } else if (flavor.sweetness < 45) {
     // balanced but flat → nudge ratio / temp via workflow

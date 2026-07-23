@@ -71,6 +71,9 @@ export async function listShots(coffeeId: string): Promise<Shot[]> {
 export async function putShot(s: Shot): Promise<void> {
   await (await db()).put("shots", s);
 }
+export async function allShots(): Promise<Shot[]> {
+  return (await db()).getAll("shots");
+}
 
 // ---- Photos ----
 export async function putPhoto(blob: Blob): Promise<string> {

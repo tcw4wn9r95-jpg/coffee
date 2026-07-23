@@ -22,6 +22,7 @@ import {
   FlavorSliders,
 } from "../components/FlavorSliders";
 import { BackIcon, CheckIcon, HeartIcon, SparkIcon } from "../components/Icons";
+import { GuidedTasting } from "../components/GuidedTasting";
 import { useToast } from "../components/Toast";
 
 type Phase = "ready" | "logging" | "result";
@@ -260,6 +261,7 @@ function DialInRound({
   const [flavor, setFlavor] = useState<FlavorProfile>({ ...EMPTY_FLAVOR });
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [busy, setBusy] = useState(false);
+  const [guided, setGuided] = useState(false);
 
   const roundNo = history.length + 1;
 
@@ -268,16 +270,18 @@ function DialInRound({
     await putShot({ ...openShot, recipe: next });
   }
 
-  async function submitTaste(verdict: FlavorProfile["verdict"]) {
-    const finalFlavor = { ...flavor, verdict };
+  /** Save the rated shot, fold learnings back into the coffee, then get advice. */
+  async function finalize(finalFlavor: FlavorProfile) {
     setFlavor(finalFlavor);
-    const shot: Shot = {
-      ...openShot,
-      recipe,
-      actual,
-      flavor: finalFlavor,
-    };
+    const shot: Shot = { ...openShot, recipe, actual, flavor: finalFlavor };
     await putShot(shot);
+    // Learning loop: guided-tasting descriptors become the coffee's tasting notes.
+    if (finalFlavor.descriptors?.length) {
+      const merged = Array.from(
+        new Set([...(coffee.tastingNotes || []), ...finalFlavor.descriptors])
+      );
+      await putCoffee({ ...coffee, tastingNotes: merged });
+    }
     setBusy(true);
     try {
       const a = await suggestAdjustment(coffee, history, shot);
@@ -292,6 +296,9 @@ function DialInRound({
       setBusy(false);
     }
   }
+
+  const submitTaste = (verdict: FlavorProfile["verdict"]) =>
+    finalize({ ...flavor, verdict });
 
   async function applyAndContinue() {
     if (!advice) return;
@@ -352,13 +359,40 @@ function DialInRound({
   // ----- LOGGING: actuals + sliders -----
   if (phase === "logging") {
     return (
-      <section>
-        <div className="eyebrow">Round {roundNo}</div>
-        <h2 style={{ fontSize: 21, marginTop: 4 }}>How did it taste?</h2>
-        <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
-          Log what actually happened, then rate the cup. Bruna reads the sliders
-          the way a barista would.
-        </p>
+      <>
+        {guided && (
+          <GuidedTasting
+            coffee={coffee}
+            onCancel={() => setGuided(false)}
+            onComplete={(f) => {
+              setGuided(false);
+              finalize(f);
+            }}
+          />
+        )}
+        <section>
+          <div className="eyebrow">Round {roundNo}</div>
+          <h2 style={{ fontSize: 21, marginTop: 4 }}>How did it taste?</h2>
+          <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
+            First log what happened in the cup, then rate the taste — guided, or
+            quick.
+          </p>
+
+          <div className="tasting-cta" onClick={() => setGuided(true)}>
+            <div className="tasting-cta-icon">
+              <SparkIcon size={22} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div className="tasting-cta-title">Start guided tasting</div>
+              <div className="tasting-cta-sub">
+                Taste like a competition judge — one step at a time. Bruna learns
+                your palate.
+              </div>
+            </div>
+            <span style={{ transform: "scaleX(-1)", display: "inline-flex", opacity: 0.6 }}>
+              <BackIcon size={18} />
+            </span>
+          </div>
 
         <div className="card card-pad" style={{ marginTop: 16 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -396,7 +430,9 @@ function DialInRound({
           </label>
         </div>
 
-        <h3 style={{ fontSize: 17, margin: "22px 0 10px" }}>Taste</h3>
+        <div className="or-divider"><span>or rate quickly</span></div>
+
+        <h3 style={{ fontSize: 17, margin: "6px 0 10px" }}>Taste</h3>
         <FlavorSliders value={flavor} onChange={setFlavor} />
 
         <label className="field">
@@ -428,7 +464,8 @@ function DialInRound({
             </button>
           </div>
         )}
-      </section>
+        </section>
+      </>
     );
   }
 

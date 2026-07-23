@@ -59,6 +59,10 @@ export interface FlavorProfile {
   balance: number;
   verdict: "love" | "close" | "off" | null;
   note?: string;
+  /** Flavor-wheel descriptors chosen during a guided tasting. */
+  descriptors?: string[];
+  /** Free-text aroma impression captured at the start of a guided tasting. */
+  aroma?: string;
 }
 
 export interface ShotActuals {

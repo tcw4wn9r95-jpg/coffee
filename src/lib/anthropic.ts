@@ -1,6 +1,13 @@
 import { GEAR_BRIEF, baselineRecipe, localAdjustment } from "./gear";
+import { getPalateBrief } from "./palate";
 import { loadSettings } from "./settings";
 import type { Advice, Coffee, CoffeeIdentity, Recipe, Shot } from "./types";
+
+/** Append the learned palate brief to a base system prompt (the learning loop). */
+async function withPalate(base: string): Promise<string> {
+  const palate = await getPalateBrief();
+  return palate ? `${base}\n\n${palate}` : base;
+}
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -176,7 +183,7 @@ export async function analyzeCoffeePhoto(
   mediaType: string
 ): Promise<CoffeeAnalysis> {
   const text = await callClaude({
-    system: RECIPE_SYSTEM,
+    system: await withPalate(RECIPE_SYSTEM),
     maxTokens: 1500,
     content: [
       {
@@ -228,7 +235,7 @@ export function normalizeIdentity(raw: CoffeeIdentity | undefined): CoffeeIdenti
 /** When there's no photo — infer a recipe from typed coffee details. */
 export async function recipeFromText(identity: CoffeeIdentity): Promise<Recipe> {
   const text = await callClaude({
-    system: RECIPE_SYSTEM,
+    system: await withPalate(RECIPE_SYSTEM),
     maxTokens: 900,
     content: [
       {
@@ -266,13 +273,22 @@ Slider meaning (0 = low/left, 100 = high/right):
 - balance: unbalanced ↔ harmonious
 verdict: "love" | "close" | "off".
 
+GRIND PRECISION (important): the Opus adjusts in macro clicks (~50 µm) and inner
+micro-ticks (⅓ of a click, ~17 µm). ALWAYS state a grind change as an explicit
+DIRECTION + MAGNITUDE in Opus terms — e.g. "1 micro-tick finer (⅓ click, ~17 µm)"
+or "1 full click coarser (~50 µm)". Near the target, prefer single micro-tick
+moves; only jump a whole click when the shot is far off. Never say "a bit finer"
+without the number. Reflect the exact target in nextRecipe.grinderMacro/grinderMicro,
+and put the precise "N micro-ticks/clicks finer/coarser" in the change's "from"→"to"
+and "why".
+
 Respond with STRICT JSON only:
 {
   "onTarget": boolean,            // true only if verdict is "love" or clearly dialed
   "diagnosis": string,           // 1-2 sentences: what the taste says about extraction
-  "summary": string,             // short headline of the change, e.g. "Grind 1 tick finer"
+  "summary": string,             // short headline w/ direction+magnitude, e.g. "Grind 1 micro-tick finer (~17 µm)"
   "changes": [                   // usually 1 item, at most 2
-    { "field": string, "from": string, "to": string, "why": string }
+    { "field": string, "from": string, "to": string, "why": string }  // "why" states direction + magnitude for grind
   ],
   "nextRecipe": {                // the FULL updated recipe to pull next
     "grinderMacro": number, "grinderMicro": number, "dose": number, "yieldG": number,
@@ -313,7 +329,7 @@ export async function suggestAdjustment(
   };
   try {
     const text = await callClaude({
-      system: ADJUST_SYSTEM,
+      system: await withPalate(ADJUST_SYSTEM),
       maxTokens: 1000,
       content: [
         {
