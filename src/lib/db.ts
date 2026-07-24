@@ -1,6 +1,13 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { Coffee, Shot } from "./types";
 
+/** One entry per maintenance task the user has completed at least once. */
+export interface MaintenanceLog {
+  taskId: string;
+  lastDoneAt: number;
+  history: number[]; // timestamps, newest last
+}
+
 interface BrunaDB extends DBSchema {
   coffees: {
     key: string;
@@ -16,19 +23,28 @@ interface BrunaDB extends DBSchema {
     key: string;
     value: Blob;
   };
+  maintenance: {
+    key: string; // taskId
+    value: MaintenanceLog;
+  };
 }
 
 let dbp: Promise<IDBPDatabase<BrunaDB>> | null = null;
 
 function db() {
   if (!dbp) {
-    dbp = openDB<BrunaDB>("bruna", 1, {
-      upgrade(d) {
-        const coffees = d.createObjectStore("coffees", { keyPath: "id" });
-        coffees.createIndex("updatedAt", "updatedAt");
-        const shots = d.createObjectStore("shots", { keyPath: "id" });
-        shots.createIndex("coffeeId", "coffeeId");
-        d.createObjectStore("photos");
+    dbp = openDB<BrunaDB>("bruna", 2, {
+      upgrade(d, oldVersion) {
+        if (oldVersion < 1) {
+          const coffees = d.createObjectStore("coffees", { keyPath: "id" });
+          coffees.createIndex("updatedAt", "updatedAt");
+          const shots = d.createObjectStore("shots", { keyPath: "id" });
+          shots.createIndex("coffeeId", "coffeeId");
+          d.createObjectStore("photos");
+        }
+        if (oldVersion < 2) {
+          d.createObjectStore("maintenance", { keyPath: "taskId" });
+        }
       },
     });
   }
@@ -83,6 +99,25 @@ export async function putPhoto(blob: Blob): Promise<string> {
 }
 export async function getPhoto(id: string): Promise<Blob | undefined> {
   return (await db()).get("photos", id);
+}
+
+// ---- Maintenance ----
+export async function listMaintenance(): Promise<MaintenanceLog[]> {
+  return (await db()).getAll("maintenance");
+}
+export async function getMaintenance(taskId: string): Promise<MaintenanceLog | undefined> {
+  return (await db()).get("maintenance", taskId);
+}
+export async function logMaintenance(taskId: string, at = Date.now()): Promise<MaintenanceLog> {
+  const d = await db();
+  const prev = await d.get("maintenance", taskId);
+  const next: MaintenanceLog = {
+    taskId,
+    lastDoneAt: at,
+    history: [...(prev?.history || []), at].slice(-24), // cap at last 24
+  };
+  await d.put("maintenance", next);
+  return next;
 }
 
 // ---- Backup ----

@@ -7,6 +7,7 @@ import { Home } from "./features/Home";
 import { NewCoffee } from "./features/NewCoffee";
 import { CoffeeDetail } from "./features/CoffeeDetail";
 import { Settings } from "./features/Settings";
+import { Maintenance, MaintenanceTask } from "./features/Maintenance";
 
 function RequireSetup({ children }: { children: React.ReactNode }) {
   const settings = loadSettings();
@@ -34,6 +35,8 @@ function Shell() {
         />
         <Route path="/new" element={<NewCoffee />} />
         <Route path="/coffee/:id" element={<CoffeeDetail />} />
+        <Route path="/care" element={<Maintenance />} />
+        <Route path="/care/:id" element={<MaintenanceTask />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
