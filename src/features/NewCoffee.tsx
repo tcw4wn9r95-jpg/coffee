@@ -7,7 +7,7 @@ import { putCoffee, putPhoto, putShot, uid } from "../lib/db";
 import type { Coffee, CoffeeIdentity, Recipe } from "../lib/types";
 import { RecipeView } from "../components/RecipeView";
 import { RecipeEditor } from "../components/RecipeEditor";
-import { CameraIcon, SparkIcon, BackIcon, CheckIcon } from "../components/Icons";
+import { CameraIcon, ImageIcon, SparkIcon, BackIcon, CheckIcon } from "../components/Icons";
 import { EMPTY_FLAVOR } from "../components/FlavorSliders";
 import { useToast } from "../components/Toast";
 import { hasKey } from "../lib/settings";
@@ -17,7 +17,8 @@ type Stage = "input" | "analyzing" | "review";
 export function NewCoffee() {
   const nav = useNavigate();
   const toast = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
 
   const [stage, setStage] = useState<Stage>("input");
   const [error, setError] = useState<string | null>(null);
@@ -260,42 +261,54 @@ export function NewCoffee() {
         sets a starting recipe for your gear.
       </p>
 
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden-file" onChange={onPick} />
+      {/* Camera forces the rear camera; the second input (no capture) opens the photo library. */}
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden-file" onChange={onPick} />
+      <input ref={libraryRef} type="file" accept="image/*" className="hidden-file" onChange={onPick} />
 
       {preview ? (
         <div style={{ marginTop: 22 }}>
           <img src={preview} className="photo-preview" alt="Coffee bag" />
           <div className="row" style={{ marginTop: 12, gap: 10 }}>
-            <button className="btn btn-ghost" onClick={() => fileRef.current?.click()}>
-              Retake
+            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => cameraRef.current?.click()}>
+              <CameraIcon size={17} /> Retake
             </button>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={analyze}>
-              <SparkIcon size={18} /> Read this coffee
+            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => libraryRef.current?.click()}>
+              <ImageIcon size={17} /> Library
             </button>
           </div>
+          <button className="btn btn-primary btn-block" style={{ marginTop: 10 }} onClick={analyze}>
+            <SparkIcon size={18} /> Read this coffee
+          </button>
         </div>
       ) : (
-        <button
-          className="card card-pad"
-          onClick={() => fileRef.current?.click()}
-          style={{
-            marginTop: 22,
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 12,
-            padding: "44px 20px",
-            cursor: "pointer",
-            color: "var(--clay)",
-            borderStyle: "dashed",
-            borderColor: "var(--clay-soft)",
-          }}
-        >
-          <CameraIcon size={38} />
-          <span style={{ fontWeight: 600, color: "var(--ink)" }}>Take a photo</span>
-          <span className="muted" style={{ fontSize: 13 }}>or choose from library</span>
-        </button>
+        <div style={{ marginTop: 22 }}>
+          <button
+            className="card card-pad"
+            onClick={() => cameraRef.current?.click()}
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 12,
+              padding: "40px 20px",
+              cursor: "pointer",
+              color: "var(--clay)",
+              borderStyle: "dashed",
+              borderColor: "var(--clay-soft)",
+            }}
+          >
+            <CameraIcon size={38} />
+            <span style={{ fontWeight: 600, color: "var(--ink)" }}>Take a photo</span>
+          </button>
+          <button
+            className="btn btn-ghost btn-block"
+            style={{ marginTop: 12 }}
+            onClick={() => libraryRef.current?.click()}
+          >
+            <ImageIcon size={18} /> Choose from library
+          </button>
+        </div>
       )}
 
       <div className="divider" />

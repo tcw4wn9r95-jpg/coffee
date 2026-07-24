@@ -25,6 +25,14 @@ export const PlusIcon = ({ size }: P) => (
   </svg>
 );
 
+export const ImageIcon = ({ size }: P) => (
+  <svg {...s(size)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="16" rx="2.5" />
+    <circle cx="8.5" cy="9.5" r="1.6" />
+    <path d="M4 17l4.5-4.5a2 2 0 0 1 2.8 0L20 21" />
+  </svg>
+);
+
 export const CameraIcon = ({ size }: P) => (
   <svg {...s(size)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
