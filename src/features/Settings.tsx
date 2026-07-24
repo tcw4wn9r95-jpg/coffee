@@ -5,7 +5,7 @@ import { validateKey } from "../lib/anthropic";
 import { getLearningStats, type LearningStats } from "../lib/palate";
 import { exportAll, importAll, clearAll, type BackupBundle } from "../lib/db";
 import { useToast } from "../components/Toast";
-import { BackIcon, SparkIcon } from "../components/Icons";
+import { BackIcon, BeanIcon } from "../components/Icons";
 
 export function Settings() {
   const nav = useNavigate();
@@ -112,7 +112,7 @@ export function Settings() {
       <div className="card card-pad" style={{ marginTop: 12 }}>
         <div className="row" style={{ gap: 11, alignItems: "flex-start" }}>
           <span className="learning-badge-icon">
-            <SparkIcon size={18} />
+            <BeanIcon size={18} />
           </span>
           <div style={{ flex: 1 }}>
             {stats && stats.tastings > 0 ? (
