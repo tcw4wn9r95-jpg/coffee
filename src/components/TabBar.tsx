@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { HomeIcon, PlusIcon, SettingsIcon } from "./Icons";
+import { HomeIcon, PlusIcon, SettingsIcon, WrenchIcon } from "./Icons";
 
 export function TabBar() {
   const nav = useNavigate();
@@ -24,6 +24,14 @@ export function TabBar() {
         >
           <PlusIcon />
           New
+        </button>
+        <button
+          className={`tab ${on("/care") ? "active" : ""}`}
+          onClick={() => nav("/care")}
+          aria-label="Equipment care"
+        >
+          <WrenchIcon />
+          Care
         </button>
         <button
           className={`tab ${on("/settings") ? "active" : ""}`}

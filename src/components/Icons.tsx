@@ -65,6 +65,12 @@ export const HeartIcon = ({ size }: P) => (
   </svg>
 );
 
+export const WrenchIcon = ({ size }: P) => (
+  <svg {...s(size)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M15.2 4a5 5 0 0 0-6 6.6L4 15.9a1.6 1.6 0 0 0 2.3 2.3l5.3-5.3a5 5 0 0 0 6.6-6l-2.6 2.6-2.6-.5-.5-2.6L15.2 4Z" />
+  </svg>
+);
+
 /** A sophisticated coffee bean — an oval with the characteristic centre crease. */
 export const BeanIcon = ({ size }: P) => (
   <svg {...s(size)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
