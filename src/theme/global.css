@@ -683,6 +683,96 @@ input[type="range"].slider::-moz-range-thumb {
   }
 }
 
+/* ---------- Brewing loader (coffee "thinking" animation) ---------- */
+.brew {
+  display: inline-block;
+  line-height: 0;
+}
+.brew svg {
+  overflow: visible;
+}
+/* Drips fall from the spout and are absorbed at the crema surface. */
+.brew-drip {
+  animation: brew-drip 1.5s cubic-bezier(0.5, 0, 0.9, 0.4) infinite;
+}
+.brew-drip-2 {
+  animation-delay: 0.5s;
+}
+.brew-drip-3 {
+  animation-delay: 1s;
+}
+@keyframes brew-drip {
+  0% {
+    transform: translateY(0) scaleY(0.6);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(17px) scaleY(1.1);
+    opacity: 1;
+  }
+  82%,
+  100% {
+    transform: translateY(19px) scaleY(0.2);
+    opacity: 0;
+  }
+}
+/* A little ripple each time a drip lands. */
+.brew-ripple {
+  transform-origin: 36px 39px;
+  animation: brew-ripple 1.5s ease-out infinite;
+}
+@keyframes brew-ripple {
+  0%,
+  62% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  74% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+/* Steam drifts up and fades. */
+.brew-steam path {
+  animation: brew-steam 2.6s ease-in-out infinite;
+}
+.brew-steam-2 {
+  animation-delay: 1.3s;
+}
+@keyframes brew-steam {
+  0% {
+    transform: translateY(3px);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(-9px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brew-drip,
+  .brew-ripple,
+  .brew-steam path {
+    animation: none;
+  }
+  .brew-drip-1 {
+    opacity: 1;
+  }
+  .brew-drip-2,
+  .brew-drip-3 {
+    opacity: 0;
+  }
+}
+
 .toast {
   position: fixed;
   left: 50%;

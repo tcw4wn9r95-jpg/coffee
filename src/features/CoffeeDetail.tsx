@@ -21,7 +21,8 @@ import {
   FlavorFingerprint,
   FlavorSliders,
 } from "../components/FlavorSliders";
-import { BackIcon, CheckIcon, HeartIcon, SparkIcon } from "../components/Icons";
+import { BackIcon, CheckIcon, HeartIcon, BeanIcon } from "../components/Icons";
+import { BrewingLoader } from "../components/BrewingLoader";
 import { GuidedTasting } from "../components/GuidedTasting";
 import { useToast } from "../components/Toast";
 
@@ -117,7 +118,7 @@ export function CoffeeDetail() {
             className="btn btn-primary btn-block"
             onClick={() => startRound(coffee, setCoffee, refresh, toast)}
           >
-            <SparkIcon size={18} /> Pull another shot
+            <BeanIcon size={18} /> Pull another shot
           </button>
         </div>
       )}
@@ -424,7 +425,7 @@ function DialInRound({
 
           <div className="tasting-cta" onClick={() => setGuided(true)}>
             <div className="tasting-cta-icon">
-              <SparkIcon size={22} />
+              <BeanIcon size={22} />
             </div>
             <div style={{ flex: 1 }}>
               <div className="tasting-cta-title">Start guided tasting</div>
@@ -492,8 +493,8 @@ function DialInRound({
         <h3 style={{ fontSize: 17, margin: "22px 0 10px" }}>Your verdict</h3>
         {busy ? (
           <div className="card card-pad center">
-            <span className="spinner spinner-clay" style={{ margin: "6px auto" }} />
-            <p className="muted" style={{ marginTop: 10 }}>Bruna is tasting along…</p>
+            <BrewingLoader size={84} />
+            <p className="muted" style={{ marginTop: 6 }}>Bruna is tasting along…</p>
           </div>
         ) : pendingVerdict ? (
           <div className="card card-pad">
@@ -529,7 +530,7 @@ function DialInRound({
               style={{ marginTop: 18 }}
               onClick={() => finalize({ ...flavor, verdict: pendingVerdict, faults })}
             >
-              <SparkIcon size={18} /> Get Bruna's read
+              <BeanIcon size={18} /> Get Bruna's read
             </button>
           </div>
         ) : (
@@ -618,7 +619,7 @@ function DialInRound({
                   <RecipeView r={advice.nextRecipe} />
                 </div>
                 <button className="btn btn-primary btn-block btn-lg" onClick={applyAndContinue}>
-                  <SparkIcon size={18} /> Apply & pull next
+                  <BeanIcon size={18} /> Apply & pull next
                 </button>
                 <button className="btn btn-ghost btn-block" onClick={lockIn}>
                   I actually like this one — lock it in

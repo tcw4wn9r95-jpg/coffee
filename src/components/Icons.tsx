@@ -65,8 +65,12 @@ export const HeartIcon = ({ size }: P) => (
   </svg>
 );
 
-export const SparkIcon = ({ size }: P) => (
+/** A sophisticated coffee bean — an oval with the characteristic centre crease. */
+export const BeanIcon = ({ size }: P) => (
   <svg {...s(size)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
+    <g transform="rotate(-32 12 12)">
+      <ellipse cx="12" cy="12" rx="6.4" ry="9.4" />
+      <path d="M12 3.2C9.7 7 14.3 10 12 12s-2.3 5 0 8.8" />
+    </g>
   </svg>
 );

@@ -7,7 +7,8 @@ import { putCoffee, putPhoto, putShot, uid } from "../lib/db";
 import type { Coffee, CoffeeIdentity, Recipe } from "../lib/types";
 import { RecipeView } from "../components/RecipeView";
 import { RecipeEditor } from "../components/RecipeEditor";
-import { CameraIcon, ImageIcon, SparkIcon, BackIcon, CheckIcon } from "../components/Icons";
+import { CameraIcon, ImageIcon, BeanIcon, BackIcon, CheckIcon } from "../components/Icons";
+import { BrewingLoader } from "../components/BrewingLoader";
 import { EMPTY_FLAVOR } from "../components/FlavorSliders";
 import { useToast } from "../components/Toast";
 import { hasKey } from "../lib/settings";
@@ -124,12 +125,9 @@ export function NewCoffee() {
   if (stage === "analyzing") {
     return (
       <div className="screen">
-        <div className="empty" style={{ paddingTop: 120 }}>
-          <div className="empty-mark">
-            <SparkIcon size={40} />
-          </div>
-          <span className="spinner spinner-clay" style={{ margin: "8px auto 18px" }} />
-          <h2 style={{ fontSize: 22 }}>Reading your coffee…</h2>
+        <div className="empty" style={{ paddingTop: 110 }}>
+          <BrewingLoader size={104} />
+          <h2 style={{ fontSize: 22, marginTop: 14 }}>Reading your coffee…</h2>
           <p className="muted" style={{ maxWidth: "30ch", margin: "10px auto 0" }}>
             {identity.website
               ? "Bruna is studying the roast and reading the roaster's page to tune a recipe for your Opus & Anna."
@@ -308,7 +306,7 @@ export function NewCoffee() {
             </button>
           </div>
           <button className="btn btn-primary btn-block" style={{ marginTop: 10 }} onClick={analyze}>
-            <SparkIcon size={18} /> Read this coffee
+            <BeanIcon size={18} /> Read this coffee
           </button>
         </div>
       ) : (
@@ -393,7 +391,7 @@ export function NewCoffee() {
             </label>
           </div>
           <button className="btn btn-primary btn-block" onClick={analyzeManual}>
-            <SparkIcon size={18} /> Get my starting recipe
+            <BeanIcon size={18} /> Get my starting recipe
           </button>
         </div>
       </details>

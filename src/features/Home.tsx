@@ -4,7 +4,7 @@ import { listCoffees } from "../lib/db";
 import { getLearningStats, type LearningStats } from "../lib/palate";
 import type { Coffee } from "../lib/types";
 import { CoffeeTile } from "../components/CoffeeTile";
-import { CupIcon, PlusIcon, SparkIcon } from "../components/Icons";
+import { CupIcon, PlusIcon, BeanIcon } from "../components/Icons";
 
 function LearningBadge({ s }: { s: LearningStats }) {
   const copy =
@@ -15,7 +15,7 @@ function LearningBadge({ s }: { s: LearningStats }) {
         }`;
   return (
     <div className="learning-badge" title="Your tastings tune future recommendations">
-      <SparkIcon size={15} />
+      <BeanIcon size={15} />
       <span>{copy}</span>
     </div>
   );
