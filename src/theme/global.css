@@ -289,6 +289,26 @@ a {
   min-height: 84px;
 }
 
+/* Read-only computed value (e.g. auto-calculated yield) styled like an input. */
+.input-readout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--clay-tint);
+  border-style: dashed;
+  color: var(--ink);
+  font-weight: 600;
+}
+.readout-hint {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--clay);
+  opacity: 0.85;
+}
+
 /* ---------- Bottom nav ---------- */
 .tabbar {
   position: fixed;

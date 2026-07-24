@@ -37,6 +37,10 @@ export interface CoffeeIdentity {
   roastDate?: string; // if printed on the bag
   tastingNotes?: string[];
   decaf?: boolean;
+  /** Optional roaster website URL — Claude fetches it for deeper brewing guidance. */
+  website?: string;
+  /** Summary of what the roaster says (intended flavour + any brew guidance). */
+  roasterGuidance?: string;
 }
 
 export interface Coffee extends CoffeeIdentity {
@@ -59,6 +63,8 @@ export interface FlavorProfile {
   balance: number;
   verdict: "love" | "close" | "off" | null;
   note?: string;
+  /** Specific faults reported when a shot is off/close, e.g. "Too bitter". */
+  faults?: string[];
   /** Flavor-wheel descriptors chosen during a guided tasting. */
   descriptors?: string[];
   /** Free-text aroma impression captured at the start of a guided tasting. */

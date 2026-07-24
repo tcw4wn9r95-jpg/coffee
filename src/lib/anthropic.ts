@@ -24,6 +24,7 @@ async function callClaude(opts: {
   system: string;
   content: ContentBlock[];
   maxTokens?: number;
+  tools?: unknown[];
 }): Promise<string> {
   const { apiKey, model } = loadSettings();
   if (!apiKey) throw new ClaudeError("No API key set. Add your Anthropic key in Settings.");
@@ -44,6 +45,7 @@ async function callClaude(opts: {
         max_tokens: opts.maxTokens ?? 1024,
         system: opts.system,
         messages: [{ role: "user", content: opts.content }],
+        ...(opts.tools && opts.tools.length ? { tools: opts.tools } : {}),
       }),
     });
   } catch {
@@ -115,6 +117,43 @@ const num = (v: unknown, d: number) =>
   typeof v === "number" && !Number.isNaN(v) ? v : Number(v) || d;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+/** Normalize a user-typed roaster URL (add https:// if missing). "" if unusable. */
+export function normalizeUrl(raw?: string): string {
+  const s = (raw || "").trim();
+  if (!s) return "";
+  try {
+    const u = new URL(/^https?:\/\//i.test(s) ? s : `https://${s}`);
+    return u.href;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Server-side web_fetch tool scoped to the roaster's own domain. Claude fetches
+ * the page (which we place in the message) to pull deeper brewing guidance.
+ * No beta header needed on the first-party API.
+ */
+function webFetchTool(url: string): unknown[] | undefined {
+  const href = normalizeUrl(url);
+  if (!href) return undefined;
+  let host = "";
+  try {
+    host = new URL(href).hostname;
+  } catch {
+    return undefined;
+  }
+  return [
+    {
+      type: "web_fetch_20260209",
+      name: "web_fetch",
+      max_uses: 4,
+      allowed_domains: [host, `www.${host}`.replace(/^www\.www\./, "www.")],
+      max_content_tokens: 6000,
+    },
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // 1) Read the bag → identity + starting recipe
 // ---------------------------------------------------------------------------
@@ -139,6 +178,15 @@ label. If a field is genuinely not shown and can't be inferred, return "" (empty
 the bag. Be specific when the label is specific (e.g. variety "SL28, SL34",
 process "washed", altitude "1,900–2,100 masl", region "Guji", origin "Ethiopia").
 
+ROASTER WEBSITE: if a roaster URL is provided, USE the web_fetch tool to read
+that page. Roasters usually publish richer detail there — full origin/process
+story, and often explicit brew guidance (recommended ratio, grind, temperature,
+and the flavour they're aiming for). Use it to fill in blank fields and to
+sharpen the recipe (e.g. if they recommend a longer ratio or a specific
+temperature, respect it within this gear's limits). Summarise what the roaster
+says — their intended flavour profile and any brew recommendations — in the
+identity field "roasterGuidance" (≤ 60 words), "" if no useful page.
+
 Respond with STRICT JSON only, no prose, in exactly this shape:
 {
   "identity": {
@@ -155,6 +203,7 @@ Respond with STRICT JSON only, no prose, in exactly this shape:
     "roastLevel": "light"|"light-medium"|"medium"|"medium-dark"|"dark"|"unknown",
     "roastDate": string,           // if printed, "" otherwise
     "decaf": boolean,              // true only if the label says decaf
+    "roasterGuidance": string,     // ≤60-word summary of the roaster page (flavour + brew tips), "" if none
     "tastingNotes": string[]       // flavour notes printed on the bag (preferred), else inferred
   },
   "recipe": {
@@ -180,25 +229,36 @@ export interface CoffeeAnalysis {
 
 export async function analyzeCoffeePhoto(
   base64: string,
-  mediaType: string
+  mediaType: string,
+  website?: string
 ): Promise<CoffeeAnalysis> {
+  const url = normalizeUrl(website);
+  const content: ContentBlock[] = [
+    {
+      type: "image",
+      source: { type: "base64", media_type: mediaType, data: base64 },
+    },
+    {
+      type: "text",
+      text:
+        "Catalogue this coffee in full detail and give my starting espresso recipe for my gear." +
+        (url
+          ? ` The roaster's page for this coffee is ${url} — fetch it with web_fetch and use its origin details and any brew guidance.`
+          : "") +
+        " JSON only.",
+    },
+  ];
   const text = await callClaude({
     system: await withPalate(RECIPE_SYSTEM),
-    maxTokens: 1500,
-    content: [
-      {
-        type: "image",
-        source: { type: "base64", media_type: mediaType, data: base64 },
-      },
-      {
-        type: "text",
-        text: "Catalogue this coffee in full detail and give my starting espresso recipe for my gear. JSON only.",
-      },
-    ],
+    maxTokens: url ? 2200 : 1500,
+    tools: url ? webFetchTool(url) : undefined,
+    content,
   });
   const parsed = extractJSON<{ identity: CoffeeIdentity; recipe: Partial<Recipe> }>(text);
+  const identity = normalizeIdentity(parsed.identity);
+  if (url) identity.website = url; // keep the user's URL regardless of what Claude echoes
   return {
-    identity: normalizeIdentity(parsed.identity),
+    identity,
     recipe: coerceRecipe(parsed.recipe),
   };
 }
@@ -226,6 +286,8 @@ export function normalizeIdentity(raw: CoffeeIdentity | undefined): CoffeeIdenti
     roastLevel: id.roastLevel || "unknown",
     roastDate: str(id.roastDate),
     decaf: id.decaf === true || undefined,
+    website: normalizeUrl(id.website) || undefined,
+    roasterGuidance: str(id.roasterGuidance),
     tastingNotes: Array.isArray(id.tastingNotes)
       ? id.tastingNotes.map((n) => str(n)).filter((n): n is string => !!n).slice(0, 10)
       : [],
@@ -233,22 +295,33 @@ export function normalizeIdentity(raw: CoffeeIdentity | undefined): CoffeeIdenti
 }
 
 /** When there's no photo — infer a recipe from typed coffee details. */
-export async function recipeFromText(identity: CoffeeIdentity): Promise<Recipe> {
+export async function recipeFromText(
+  identity: CoffeeIdentity
+): Promise<{ recipe: Recipe; roasterGuidance?: string }> {
+  const url = normalizeUrl(identity.website);
   const text = await callClaude({
     system: await withPalate(RECIPE_SYSTEM),
-    maxTokens: 900,
+    maxTokens: url ? 1600 : 900,
+    tools: url ? webFetchTool(url) : undefined,
     content: [
       {
         type: "text",
         text:
           "No photo. Here are the coffee details as JSON. Return the SAME JSON shape " +
-          "(identity + recipe); keep my identity fields, just add the recipe.\n\n" +
+          "(identity + recipe); keep my identity fields, just add the recipe" +
+          (url
+            ? ` and fetch the roaster page ${url} with web_fetch to fill roasterGuidance and sharpen the recipe`
+            : "") +
+          ".\n\n" +
           JSON.stringify({ identity }),
       },
     ],
   });
-  const parsed = extractJSON<{ recipe: Partial<Recipe> }>(text);
-  return coerceRecipe(parsed.recipe);
+  const parsed = extractJSON<{ identity?: CoffeeIdentity; recipe: Partial<Recipe> }>(text);
+  return {
+    recipe: coerceRecipe(parsed.recipe),
+    roasterGuidance: str(parsed.identity?.roasterGuidance),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +345,21 @@ Slider meaning (0 = low/left, 100 = high/right):
 - aftertaste: short ↔ long & pleasant
 - balance: unbalanced ↔ harmonious
 verdict: "love" | "close" | "off".
+
+REPORTED FAULTS: if the barista listed specific faults (e.g. "Too bitter",
+"Too sour", "Too weak/watery", "Not sweet enough", "Ashy/burnt", "Channeled"),
+treat them as the strongest signal and target them directly — sour/thin/fast =
+under-extracted → finer; bitter/harsh/dry/slow = over-extracted → coarser;
+channeling/spraying is a puck-prep problem (WDT, level, tamp square), NOT a grind
+change on its own.
+
+CONTRAST WITH THE ROASTER: the coffee's tasting notes and roasterGuidance describe
+what this coffee is SUPPOSED to taste like (the roaster's intended profile, and
+sometimes their brew recommendations). Diagnose the gap between what the barista
+tasted and that intended profile, name it in the diagnosis (e.g. "the roaster is
+going for jasmine and stone fruit, but you're getting bitterness — that's
+over-extraction masking the florals"), and move toward it. If the roaster gave a
+brew recommendation, honour it within this gear's limits.
 
 GRIND PRECISION (important): the Opus adjusts in macro clicks (~50 µm) and inner
 micro-ticks (⅓ of a click, ~17 µm). ALWAYS state a grind change as an explicit
@@ -302,7 +390,8 @@ function shotSummary(shots: Shot[]): string {
   return shots
     .map((s, i) => {
       const f = s.flavor;
-      return `Shot ${i + 1}: grind Opus ${s.recipe.grinderMacro}+${s.recipe.grinderMicro}micro, ${s.recipe.dose}g→${s.recipe.yieldG}g in ${s.actual.timeSeconds ?? s.recipe.timeSeconds}s. Taste[acid ${f.acidity} sweet ${f.sweetness} bitter ${f.bitterness} body ${f.body} after ${f.aftertaste} balance ${f.balance}] verdict=${f.verdict}. ${s.actual.observations || ""}`.trim();
+      const faults = f.faults?.length ? ` faults=[${f.faults.join(", ")}]` : "";
+      return `Shot ${i + 1}: grind Opus ${s.recipe.grinderMacro}+${s.recipe.grinderMicro}micro, ${s.recipe.dose}g→${s.recipe.yieldG}g in ${s.actual.timeSeconds ?? s.recipe.timeSeconds}s. Taste[acid ${f.acidity} sweet ${f.sweetness} bitter ${f.bitterness} body ${f.body} after ${f.aftertaste} balance ${f.balance}] verdict=${f.verdict}${faults}. ${s.actual.observations || ""}`.trim();
     })
     .join("\n");
 }
@@ -320,11 +409,14 @@ export async function suggestAdjustment(
       origin: coffee.origin,
       process: coffee.process,
       roastLevel: coffee.roastLevel,
+      variety: coffee.variety,
       tastingNotes: coffee.tastingNotes,
+      roasterIntendedProfile: coffee.roasterGuidance,
     },
     currentRecipe: current.recipe,
     currentActuals: current.actual,
     currentTaste: current.flavor,
+    reportedFaults: current.flavor.faults,
     history: shotSummary(all),
   };
   try {
