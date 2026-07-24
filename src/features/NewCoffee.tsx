@@ -54,8 +54,9 @@ export function NewCoffee() {
     setStage("analyzing");
     setError(null);
     try {
-      const res = await analyzeCoffeePhoto(pending.base64, pending.media);
-      setIdentity(res.identity);
+      const res = await analyzeCoffeePhoto(pending.base64, pending.media, identity.website);
+      // Keep any details the user already typed (e.g. website) if Claude left them blank.
+      setIdentity((prev) => ({ ...res.identity, website: res.identity.website || prev.website }));
       setRecipe(res.recipe);
       setStage("review");
     } catch (e) {
@@ -79,7 +80,8 @@ export function NewCoffee() {
     setError(null);
     try {
       const r = await recipeFromText(identity);
-      setRecipe(r);
+      setRecipe(r.recipe);
+      if (r.roasterGuidance) setId({ roasterGuidance: r.roasterGuidance });
       setStage("review");
     } catch {
       setRecipe(baselineRecipe());
@@ -124,9 +126,10 @@ export function NewCoffee() {
           </div>
           <span className="spinner spinner-clay" style={{ margin: "8px auto 18px" }} />
           <h2 style={{ fontSize: 22 }}>Reading your coffee…</h2>
-          <p className="muted" style={{ maxWidth: "28ch", margin: "10px auto 0" }}>
-            Bruna is studying the roast and tuning a starting recipe for your Opus
-            &amp; Anna.
+          <p className="muted" style={{ maxWidth: "30ch", margin: "10px auto 0" }}>
+            {identity.website
+              ? "Bruna is studying the roast and reading the roaster's page to tune a recipe for your Opus & Anna."
+              : "Bruna is studying the roast and tuning a starting recipe for your Opus & Anna."}
           </p>
         </div>
       </div>
@@ -194,6 +197,26 @@ export function NewCoffee() {
             <input className="input" value={identity.producer || ""} onChange={(e) => setId({ producer: e.target.value })} />
           </label>
         </div>
+
+        <label className="field">
+          <span className="field-label">Roaster website</span>
+          <input
+            className="input"
+            type="url"
+            inputMode="url"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="roaster.com/this-coffee"
+            value={identity.website || ""}
+            onChange={(e) => setId({ website: e.target.value })}
+          />
+        </label>
+
+        {identity.roasterGuidance && (
+          <div className="callout" style={{ marginTop: 14 }}>
+            <strong>From the roaster.</strong> {identity.roasterGuidance}
+          </div>
+        )}
 
         <button className="link-btn" style={{ marginTop: 14 }} onClick={() => setMoreDetails((s) => !s)}>
           {moreDetails ? "Fewer details" : "More details"}
@@ -310,6 +333,24 @@ export function NewCoffee() {
           </button>
         </div>
       )}
+
+      <label className="field" style={{ marginTop: 20 }}>
+        <span className="field-label">Roaster website (optional)</span>
+        <input
+          className="input"
+          type="url"
+          inputMode="url"
+          autoCapitalize="none"
+          spellCheck={false}
+          placeholder="roaster.com/this-coffee"
+          value={identity.website || ""}
+          onChange={(e) => setId({ website: e.target.value })}
+        />
+        <span className="faint" style={{ fontSize: 12, marginTop: 6, display: "block", lineHeight: 1.4 }}>
+          Paste the coffee's page and Bruna reads it — roasters often list origin
+          detail and brew guidance that sharpen your recipe.
+        </span>
+      </label>
 
       <div className="divider" />
 

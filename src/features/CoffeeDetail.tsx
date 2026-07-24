@@ -174,6 +174,20 @@ async function redial(
   toast("New dial-in started");
 }
 
+/** Common espresso faults, offered as chips when a shot is off/close. */
+const FAULTS = [
+  "Too sour / sharp",
+  "Too bitter",
+  "Too weak / watery",
+  "Too harsh / dry",
+  "Not sweet enough",
+  "Flat / dull",
+  "Too strong / intense",
+  "Muddy / muddled",
+  "Ashy / burnt",
+  "Channeled / sprayed",
+];
+
 // ---------------------------------------------------------------------------
 function Provenance({ coffee }: { coffee: Coffee }) {
   const items: { label: string; value?: string; wide?: boolean }[] = [
@@ -195,24 +209,49 @@ function Provenance({ coffee }: { coffee: Coffee }) {
     { label: "Roasted", value: coffee.roastDate },
   ].filter((i) => i.value);
 
-  if (items.length === 0) return null;
+  const hostname = (() => {
+    try {
+      return coffee.website ? new URL(coffee.website).hostname.replace(/^www\./, "") : "";
+    } catch {
+      return "";
+    }
+  })();
+
+  if (items.length === 0 && !coffee.website && !coffee.roasterGuidance && !coffee.decaf)
+    return null;
 
   return (
     <section style={{ marginTop: 20 }}>
       <div className="eyebrow">Provenance</div>
-      <div className="prov">
-        {items.map((i) => (
-          <div className={`prov-item ${i.wide ? "wide" : ""}`} key={i.label}>
-            <div className="prov-label">{i.label}</div>
-            <div className="prov-value">{i.value}</div>
-          </div>
-        ))}
-      </div>
-      {coffee.decaf && (
-        <span className="badge badge-dialing" style={{ marginTop: 10 }}>
-          Decaf
-        </span>
+      {items.length > 0 && (
+        <div className="prov">
+          {items.map((i) => (
+            <div className={`prov-item ${i.wide ? "wide" : ""}`} key={i.label}>
+              <div className="prov-label">{i.label}</div>
+              <div className="prov-value">{i.value}</div>
+            </div>
+          ))}
+        </div>
       )}
+      {coffee.roasterGuidance && (
+        <div className="callout" style={{ marginTop: 14 }}>
+          <strong>From the roaster.</strong> {coffee.roasterGuidance}
+        </div>
+      )}
+      <div className="row" style={{ marginTop: 12, gap: 10, flexWrap: "wrap" }}>
+        {coffee.website && (
+          <a
+            className="badge badge-dialing"
+            href={coffee.website}
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: "none" }}
+          >
+            {hostname || "Roaster page"} ↗
+          </a>
+        )}
+        {coffee.decaf && <span className="badge badge-dialing">Decaf</span>}
+      </div>
     </section>
   );
 }
@@ -262,6 +301,10 @@ function DialInRound({
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [busy, setBusy] = useState(false);
   const [guided, setGuided] = useState(false);
+  const [pendingVerdict, setPendingVerdict] = useState<"off" | "close" | null>(
+    null,
+  );
+  const [faults, setFaults] = useState<string[]>([]);
 
   const roundNo = history.length + 1;
 
@@ -296,9 +339,6 @@ function DialInRound({
       setBusy(false);
     }
   }
-
-  const submitTaste = (verdict: FlavorProfile["verdict"]) =>
-    finalize({ ...flavor, verdict });
 
   async function applyAndContinue() {
     if (!advice) return;
@@ -451,15 +491,70 @@ function DialInRound({
             <span className="spinner spinner-clay" style={{ margin: "6px auto" }} />
             <p className="muted" style={{ marginTop: 10 }}>Bruna is tasting along…</p>
           </div>
+        ) : pendingVerdict ? (
+          <div className="card card-pad">
+            <div className="row-between">
+              <strong style={{ fontFamily: "var(--serif)", fontSize: 17 }}>
+                What was off?
+              </strong>
+              <button className="link-btn" onClick={() => setPendingVerdict(null)}>
+                Back
+              </button>
+            </div>
+            <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+              Tap what you tasted — Bruna weighs this against what the roaster
+              intends and fixes it.
+            </p>
+            <div className="chips">
+              {FAULTS.map((f) => (
+                <button
+                  key={f}
+                  className={`chip ${faults.includes(f) ? "on" : ""}`}
+                  onClick={() =>
+                    setFaults((cur) =>
+                      cur.includes(f) ? cur.filter((x) => x !== f) : [...cur, f]
+                    )
+                  }
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            <button
+              className="btn btn-primary btn-block"
+              style={{ marginTop: 18 }}
+              onClick={() => finalize({ ...flavor, verdict: pendingVerdict, faults })}
+            >
+              <SparkIcon size={18} /> Get Bruna's read
+            </button>
+          </div>
         ) : (
           <div className="row" style={{ gap: 10 }}>
-            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => submitTaste("off")}>
+            <button
+              className="btn btn-ghost"
+              style={{ flex: 1 }}
+              onClick={() => {
+                setFaults([]);
+                setPendingVerdict("off");
+              }}
+            >
               Off
             </button>
-            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => submitTaste("close")}>
+            <button
+              className="btn btn-ghost"
+              style={{ flex: 1 }}
+              onClick={() => {
+                setFaults([]);
+                setPendingVerdict("close");
+              }}
+            >
               Close
             </button>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => submitTaste("love")}>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 1 }}
+              onClick={() => finalize({ ...flavor, verdict: "love", faults: [] })}
+            >
               <HeartIcon size={16} /> Love it
             </button>
           </div>

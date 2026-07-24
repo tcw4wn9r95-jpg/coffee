@@ -1,7 +1,10 @@
 import type { FlavorProfile } from "../lib/types";
 
 export interface Axis {
-  key: keyof Omit<FlavorProfile, "verdict" | "note" | "descriptors" | "aroma">;
+  key: keyof Omit<
+    FlavorProfile,
+    "verdict" | "note" | "descriptors" | "aroma" | "faults"
+  >;
   name: string;
   low: string;
   high: string;
