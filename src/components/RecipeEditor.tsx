@@ -1,5 +1,52 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Recipe } from "../lib/types";
+
+/**
+ * A freely-typeable dose input. Keeps its own text state so you can clear it,
+ * type intermediate values, and enter any weight — the yield recomputes from
+ * whatever valid number you land on. No clamping while you type.
+ */
+function DoseField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const [text, setText] = useState(String(value));
+
+  // Reflect external changes (e.g. Bruna's advice) unless the user is mid-edit
+  // on the same underlying value.
+  useEffect(() => {
+    if (Number(text) !== value) setText(String(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <label className="field" style={{ marginTop: 0 }}>
+      <span className="field-label">Dose in</span>
+      <div className="row" style={{ gap: 8 }}>
+        <input
+          className="input"
+          type="number"
+          inputMode="decimal"
+          step={0.1}
+          min={0}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            const n = Number(e.target.value);
+            if (e.target.value.trim() !== "" && Number.isFinite(n) && n > 0) {
+              onChange(n);
+            }
+          }}
+          style={{ textAlign: "center" }}
+        />
+        <span className="muted" style={{ fontSize: 13 }}>g</span>
+      </div>
+    </label>
+  );
+}
 
 function numField(
   label: string,
@@ -85,7 +132,7 @@ export function RecipeEditor({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {numField("Opus macro", recipe.grinderMacro, 1, 1, 41, (n) => set({ grinderMacro: n }))}
         {numField("Micro ticks", recipe.grinderMicro, 1, 0, 2, (n) => set({ grinderMicro: n }))}
-        {numField("Dose in", recipe.dose, 0.5, 14, 22, setDose, "g")}
+        <DoseField value={recipe.dose} onChange={setDose} />
 
         <label className="field" style={{ marginTop: 0 }}>
           <span className="field-label">Ratio</span>
