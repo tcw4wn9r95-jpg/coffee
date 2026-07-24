@@ -380,7 +380,11 @@ function DialInRound({
         </div>
         <div style={{ marginTop: 14 }}>
           {editing ? (
-            <RecipeEditor recipe={recipe} onChange={saveRecipeEdit} />
+            <RecipeEditor
+              recipe={recipe}
+              onChange={saveRecipeEdit}
+              recommendedRatio={openShot.recipe.ratio}
+            />
           ) : (
             <RecipeView r={recipe} />
           )}

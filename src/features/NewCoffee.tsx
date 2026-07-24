@@ -27,6 +27,8 @@ export function NewCoffee() {
 
   const [identity, setIdentity] = useState<CoffeeIdentity>({ name: "", tastingNotes: [] });
   const [recipe, setRecipe] = useState<Recipe>(baselineRecipe());
+  // Bruna's originally-recommended ratio, kept stable as the user edits the recipe.
+  const [recommendedRatio, setRecommendedRatio] = useState(baselineRecipe().ratio);
   const [editing, setEditing] = useState(false);
   const [moreDetails, setMoreDetails] = useState(false);
   const setId = (patch: Partial<CoffeeIdentity>) => setIdentity((p) => ({ ...p, ...patch }));
@@ -58,6 +60,7 @@ export function NewCoffee() {
       // Keep any details the user already typed (e.g. website) if Claude left them blank.
       setIdentity((prev) => ({ ...res.identity, website: res.identity.website || prev.website }));
       setRecipe(res.recipe);
+      setRecommendedRatio(res.recipe.ratio);
       setStage("review");
     } catch (e) {
       setStage("input");
@@ -81,6 +84,7 @@ export function NewCoffee() {
     try {
       const r = await recipeFromText(identity);
       setRecipe(r.recipe);
+      setRecommendedRatio(r.recipe.ratio);
       if (r.roasterGuidance) setId({ roasterGuidance: r.roasterGuidance });
       setStage("review");
     } catch {
@@ -259,7 +263,11 @@ export function NewCoffee() {
         </div>
         <div style={{ marginTop: 14 }}>
           {editing ? (
-            <RecipeEditor recipe={recipe} onChange={setRecipe} />
+            <RecipeEditor
+              recipe={recipe}
+              onChange={setRecipe}
+              recommendedRatio={recommendedRatio}
+            />
           ) : (
             <RecipeView r={recipe} />
           )}
