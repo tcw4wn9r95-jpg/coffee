@@ -207,13 +207,13 @@ Respond with STRICT JSON only, no prose, in exactly this shape:
     "tastingNotes": string[]       // flavour notes printed on the bag (preferred), else inferred
   },
   "recipe": {
-    "grinderMacro": number,        // Opus outer click, 1-4 for espresso
-    "grinderMicro": number,        // Opus inner micro ticks, 0-2
+    "grinderMacro": number,        // Opus outer click, 1-4 for espresso (lower = finer)
+    "grinderMicro": number,        // Opus inner ticks TOWARD THE "−" MARK, 0-2 (finer)
     "dose": number,                // grams, 18-20
     "yieldG": number,              // grams out
     "ratio": string,               // e.g. "1:2"
     "timeSeconds": number,         // target seconds from first drops
-    "tamp": string,                // short tamping cue
+    "tamp": string,                // tamp cue with explicit force in kg (≈15 kg) + level-not-hard reminder
     "temperature": string,         // WORKFLOW guidance (warm-up / temp surf), NOT a number
     "preInfusion": string,         // manual pre-infusion guidance
     "notes": string                // one-line rationale tying to this coffee

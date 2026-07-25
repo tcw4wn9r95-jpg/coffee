@@ -131,7 +131,7 @@ export function RecipeEditor({
     <div className="card card-pad stack">
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {numField("Opus macro", recipe.grinderMacro, 1, 1, 41, (n) => set({ grinderMacro: n }))}
-        {numField("Micro ticks", recipe.grinderMicro, 1, 0, 2, (n) => set({ grinderMicro: n }))}
+        {numField("Ticks toward −", recipe.grinderMicro, 1, 0, 2, (n) => set({ grinderMicro: n }))}
         <DoseField value={recipe.dose} onChange={setDose} />
 
         <label className="field" style={{ marginTop: 0 }}>
