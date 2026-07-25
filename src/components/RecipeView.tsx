@@ -28,11 +28,6 @@ export function RecipeView({ r }: { r: Recipe }) {
           >
             {showDial ? "Hide" : "Show"} dial map
           </button>
-          {showDial && (
-            <div style={{ marginTop: 8 }}>
-              <OpusDial macro={r.grinderMacro} micro={r.grinderMicro} size={200} />
-            </div>
-          )}
         </div>
         <div className="spec">
           <div className="spec-label">Dose → Yield</div>
@@ -67,6 +62,11 @@ export function RecipeView({ r }: { r: Recipe }) {
           </div>
         </div>
       </div>
+      {showDial && (
+        <div className="card card-pad" style={{ marginTop: 10 }}>
+          <OpusDial macro={r.grinderMacro} micro={r.grinderMicro} size={280} />
+        </div>
+      )}
       {r.notes ? (
         <p className="muted" style={{ fontSize: 13.5, marginTop: 12 }}>
           {r.notes}
