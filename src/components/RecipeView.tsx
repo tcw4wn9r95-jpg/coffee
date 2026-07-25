@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { Recipe } from "../lib/types";
 import { formatGrind } from "../lib/gear";
+import { OpusDial } from "./OpusDial";
 
 export function RecipeView({ r }: { r: Recipe }) {
+  const [showDial, setShowDial] = useState(false);
   return (
     <div>
       <div className="spec-grid">
@@ -12,11 +15,24 @@ export function RecipeView({ r }: { r: Recipe }) {
             {r.grinderMicro ? (
               <>
                 {" "}
-                <small>+{r.grinderMicro} micro</small>
+                <small>· {r.grinderMicro} tick{r.grinderMicro > 1 ? "s" : ""} toward −</small>
               </>
             ) : null}
           </div>
-          <div className="spec-note">outer click · inner micro-ring</div>
+          <div className="spec-note">outer click · inner ring toward − mark for finer</div>
+          <button
+            type="button"
+            className="link-btn"
+            style={{ fontSize: 12, marginTop: 4 }}
+            onClick={() => setShowDial((s) => !s)}
+          >
+            {showDial ? "Hide" : "Show"} dial map
+          </button>
+          {showDial && (
+            <div style={{ marginTop: 8 }}>
+              <OpusDial macro={r.grinderMacro} micro={r.grinderMicro} size={200} />
+            </div>
+          )}
         </div>
         <div className="spec">
           <div className="spec-label">Dose → Yield</div>

@@ -32,10 +32,19 @@ GRINDER — Fellow Opus (conical burr):
 - Espresso lives at the VERY fine end of the Opus: macro 1–4. Many units need
   ~1.5–3.0. The Opus is capable but marginal for espresso, so small moves
   matter — prefer changing the micro-ring (1 tick) before a whole macro click.
-- Express grind as "macro.micro", e.g. "2 · 1 tick" means macro 2, one micro tick finer.
+- DIRECTION on the physical dials:
+  · Outer macro dial: LOWER number = finer, higher number = coarser.
+  · Inner micro-ring: turn toward the "−" mark for FINER (tighter burrs);
+    toward "+" for COARSER (wider burrs). ALWAYS refer to the ring by its
+    physical marking (− / +), never as "add micro" or "+1 micro".
+- Express a grind position as "macro · N ticks toward −", e.g. "Opus 2 · 1 tick toward −"
+  means macro 2, then the micro-ring rotated one tick toward the − mark (one micro-tick
+  finer than macro 2).
 - PRECISION: state every grind change as a DIRECTION + MAGNITUDE — e.g. "1 micro-tick
-  finer (⅓ click, ~17 µm)" or "1 full click coarser (~50 µm)". Near the target, move a
-  single micro-tick at a time; never say "a bit finer/coarser" without the number.
+  finer, rotate the inner ring one tick toward − (⅓ click, ~17 µm)" or
+  "1 full macro-click coarser, outer dial from 2 → 3 (~50 µm)". Near the target,
+  move a single micro-tick at a time; never say "a bit finer/coarser" without the
+  number and the physical direction.
 
 MACHINE — Lelit Anna PL41EM (base model, IMPORTANT: NO PID):
 - Single 250 ml brass boiler, 57 mm group, vibration pump, 3-way solenoid.
@@ -56,6 +65,17 @@ PORTAFILTER — bottomless (naked), 18–20 g basket:
 - A bottomless portafilter reveals channeling and uneven extraction. Coach good
   puck prep: distribute/WDT, level, tamp square. If the shot squirts, sprays, or
   goes blonde in one spot, that's channeling — a prep problem, not always grind.
+- TAMPING — be specific about force, not vague:
+  · Target ~15 kg (≈30 lb) of downward pressure. Home baristas can calibrate
+    once on a bathroom scale: press the tamper until the scale reads 15 kg,
+    then hold that finger memory.
+  · Method: rest the tamper flat on the grounds, then press straight down with
+    steady force for ~1–2 seconds until you feel the puck stop compressing
+    (past ~15 kg the puck barely moves — extra force just tires your wrist).
+  · Level matters more than force. A crooked tamp = channeling on a bottomless
+    portafilter regardless of how hard you press.
+  · Consistency shot-to-shot > exact weight. Same force every time is what
+    makes the dial-in loop meaningful.
 
 BASELINE (starting point, then adjust by taste):
 - Dose 18 g, ratio 1:2 (≈36 g out), target 25–32 s from first drops.
@@ -85,8 +105,10 @@ export function magnitude(
 }
 
 export function formatGrind(r: { grinderMacro: number; grinderMicro: number }): string {
+  // The micro-ring's − mark makes the grind finer. `grinderMicro` counts ticks
+  // toward that − mark, so display it with the minus sign to match the physical dial.
   const micro = r.grinderMicro
-    ? ` · +${r.grinderMicro} micro`
+    ? ` · ${r.grinderMicro} tick${r.grinderMicro > 1 ? "s" : ""} toward −`
     : "";
   return `Opus ${r.grinderMacro}${micro}`;
 }
@@ -105,7 +127,7 @@ export function baselineRecipe(): Recipe {
     yieldG: 36,
     ratio: "1:2",
     timeSeconds: 28,
-    tamp: "Level bed, square tamp ~15 kg. Consistency over force.",
+    tamp: "Level bed, square tamp with ~15 kg (≈30 lb) of steady pressure — press until the puck stops compressing (~1–2 s). Level matters more than force; consistency shot-to-shot matters most.",
     temperature:
       "Warm up 20–30 min with the portafilter locked in. Pull a few seconds after the heat light clicks off.",
     preInfusion: "Optional: brew on ~3 s, pause ~2 s, then continue (manual pre-infusion).",
@@ -152,7 +174,7 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
       field: "Grind",
       from: formatGrind(recipe),
       to: formatGrind(next),
-      why: `${mag} finer → slower flow → less sour, more sweetness.`,
+      why: `${mag} finer (rotate the inner ring one tick toward −) → slower flow → less sour, more sweetness.`,
     });
   } else if (sour < -12 || tooSlow) {
     // over-extracted → coarser, by one micro-tick where possible
@@ -168,7 +190,7 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
       field: "Grind",
       from: formatGrind(recipe),
       to: formatGrind(next),
-      why: `${mag} coarser → faster flow → less bitter, cleaner finish.`,
+      why: `${mag} coarser (rotate the inner ring one tick toward +) → faster flow → less bitter, cleaner finish.`,
     });
   } else if (flavor.sweetness < 45) {
     // balanced but flat → nudge ratio / temp via workflow
