@@ -98,16 +98,30 @@ export function RecipeEditor({
   recipe,
   onChange,
   recommendedRatio,
+  onRefit,
+  refitBusy,
 }: {
   recipe: Recipe;
   onChange: (r: Recipe) => void;
   /** Bruna's suggested ratio, e.g. "1:2" — marked "recommended" in the dropdown. */
   recommendedRatio?: string;
+  /**
+   * Optional handler: when the user has manually overridden dose or ratio and
+   * wants the rest of the recipe (grind, time, tamp, temperature, pre-infusion)
+   * recomputed to fit, they tap "Recalculate" and this fires with the
+   * barista-fixed dose / ratio / yield.
+   */
+  onRefit?: (fixed: { dose: number; ratio: string; yieldG: number }) => Promise<void> | void;
+  refitBusy?: boolean;
 }) {
   const [showText, setShowText] = useState(false);
+  const [baseline] = useState({ dose: recipe.dose, ratio: recipe.ratio });
 
   const currentVal = recipe.dose ? round2(recipe.yieldG / recipe.dose) : 2;
   const recVal = recommendedRatio ? round2(ratioValue(recommendedRatio)) : null;
+  const doseOrRatioChanged =
+    onRefit !== undefined &&
+    (recipe.dose !== baseline.dose || recipe.ratio !== baseline.ratio);
 
   // The dropdown offers the standard ladder plus Bruna's pick and the current
   // value (so a non-standard ratio like 1:2.1 is always selectable).
@@ -130,8 +144,8 @@ export function RecipeEditor({
   return (
     <div className="card card-pad stack">
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {numField("Opus macro", recipe.grinderMacro, 1, 1, 41, (n) => set({ grinderMacro: n }))}
-        {numField("Ticks toward −", recipe.grinderMicro, 1, 0, 2, (n) => set({ grinderMicro: n }))}
+        {numField("Macro", recipe.grinderMacro, 1, 1, 41, (n) => set({ grinderMacro: n }))}
+        {numField("Micro (−N)", recipe.grinderMicro, 1, 0, 2, (n) => set({ grinderMicro: n }))}
         <DoseField value={recipe.dose} onChange={setDose} />
 
         <label className="field" style={{ marginTop: 0 }}>
@@ -175,6 +189,29 @@ export function RecipeEditor({
             </>
           )}
         </p>
+      )}
+
+      {onRefit && doseOrRatioChanged && (
+        <div className="refit-cta">
+          <div style={{ flex: 1 }}>
+            <strong style={{ fontSize: 13.5 }}>You changed dose or ratio</strong>
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+              Let Bruna recompute grind, time, tamp and temperature to fit
+              {" "}{recipe.dose} g @ {recipe.ratio}.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ whiteSpace: "nowrap" }}
+            disabled={refitBusy}
+            onClick={() =>
+              onRefit({ dose: recipe.dose, ratio: recipe.ratio, yieldG: recipe.yieldG })
+            }
+          >
+            {refitBusy ? "Recalculating…" : "Recalculate"}
+          </button>
+        </div>
       )}
 
       <button className="link-btn" onClick={() => setShowText((s) => !s)}>

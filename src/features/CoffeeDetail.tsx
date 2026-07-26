@@ -8,7 +8,7 @@ import {
   putShot,
   uid,
 } from "../lib/db";
-import { suggestAdjustment } from "../lib/anthropic";
+import { ClaudeError, refitRecipe, suggestAdjustment } from "../lib/anthropic";
 import { baselineRecipe, formatGrind } from "../lib/gear";
 import { roastLabel } from "../lib/roast";
 import type { AdjustmentChange, Advice, Coffee, FlavorProfile, Recipe, Shot } from "../lib/types";
@@ -354,12 +354,27 @@ function DialInRound({
     null,
   );
   const [faults, setFaults] = useState<string[]>([]);
+  const [refitBusy, setRefitBusy] = useState(false);
 
   const roundNo = history.length + 1;
 
   async function saveRecipeEdit(next: Recipe) {
     setRecipe(next);
     await putShot({ ...openShot, recipe: next });
+  }
+
+  async function refitFromDoseRatio(fixed: { dose: number; ratio: string; yieldG: number }) {
+    setRefitBusy(true);
+    try {
+      const refit = await refitRecipe(coffee, fixed);
+      await saveRecipeEdit(refit);
+      toast("Recipe recomputed for your dose & ratio");
+    } catch (e) {
+      const msg = e instanceof ClaudeError ? e.message : "Couldn't recompute — try again.";
+      toast(msg);
+    } finally {
+      setRefitBusy(false);
+    }
   }
 
   /** Save the rated shot, fold learnings back into the coffee, then get advice. */
@@ -440,6 +455,8 @@ function DialInRound({
               recipe={recipe}
               onChange={saveRecipeEdit}
               recommendedRatio={openShot.recipe.ratio}
+              onRefit={refitFromDoseRatio}
+              refitBusy={refitBusy}
             />
           ) : (
             <RecipeView r={recipe} />

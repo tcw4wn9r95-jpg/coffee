@@ -9,17 +9,19 @@ export function RecipeView({ r }: { r: Recipe }) {
     <div>
       <div className="spec-grid">
         <div className="spec">
-          <div className="spec-label">Grind — Opus</div>
+          <div className="spec-label">Grind</div>
           <div className="spec-value">
+            <span style={{ fontSize: 14, letterSpacing: "0.02em" }}>Macro</span>{" "}
             {r.grinderMacro}
             {r.grinderMicro ? (
               <>
-                {" "}
-                <small>· {r.grinderMicro} tick{r.grinderMicro > 1 ? "s" : ""} toward −</small>
+                {" · "}
+                <span style={{ fontSize: 14, letterSpacing: "0.02em" }}>Micro</span>{" "}
+                <span>−{r.grinderMicro}</span>
               </>
             ) : null}
           </div>
-          <div className="spec-note">outer click · inner ring toward − mark for finer</div>
+          <div className="spec-note">Fellow Opus — inner ring toward − mark for finer</div>
           <button
             type="button"
             className="link-btn"
