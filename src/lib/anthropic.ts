@@ -375,8 +375,8 @@ Respond with STRICT JSON only:
   "onTarget": boolean,            // true only if verdict is "love" or clearly dialed
   "diagnosis": string,           // 1-2 sentences: what the taste says about extraction
   "summary": string,             // short headline w/ direction+magnitude, e.g. "Grind 1 micro-tick finer (~17 µm)"
-  "changes": [                   // usually 1 item, at most 2
-    { "field": string, "from": string, "to": string, "why": string }  // "why" states direction + magnitude for grind
+  "changes": [                   // 0 items when the shot is dialed / nothing needs to move; else usually 1 item, at most 2. NEVER emit a no-op change where "from" and "to" are the same value (drop it and rely on "diagnosis").
+    { "field": string, "from": string, "to": string, "why": string }  // "from" and "to" MUST differ. "why" states direction + magnitude for grind.
   ],
   "nextRecipe": {                // the FULL updated recipe to pull next
     "grinderMacro": number, "grinderMicro": number, "dose": number, "yieldG": number,

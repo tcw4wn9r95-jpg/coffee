@@ -11,7 +11,7 @@ import {
 import { suggestAdjustment } from "../lib/anthropic";
 import { baselineRecipe, formatGrind } from "../lib/gear";
 import { roastLabel } from "../lib/roast";
-import type { Advice, Coffee, FlavorProfile, Recipe, Shot } from "../lib/types";
+import type { AdjustmentChange, Advice, Coffee, FlavorProfile, Recipe, Shot } from "../lib/types";
 import { RecipeView } from "../components/RecipeView";
 import { RecipeEditor } from "../components/RecipeEditor";
 import { PhotoThumb } from "../components/PhotoThumb";
@@ -177,12 +177,12 @@ async function redial(
 
 /**
  * True if the barista actually engaged the flavor sliders — i.e. any axis is
- * meaningfully off the neutral 50 default. Used to decide whether to skip the
- * fault-chip step (since the sliders already say what was off).
+ * meaningfully off its EMPTY_FLAVOR starting position. Used to decide whether
+ * to skip the fault-chip step (since the sliders already say what was off).
  */
 function slidersMoved(f: FlavorProfile): boolean {
-  const axes = [f.acidity, f.sweetness, f.bitterness, f.body, f.aftertaste, f.balance];
-  return axes.some((v) => Math.abs((v ?? 50) - 50) >= 6);
+  const axes = ["acidity", "sweetness", "bitterness", "body", "aftertaste", "balance"] as const;
+  return axes.some((k) => Math.abs((f[k] ?? 0) - (EMPTY_FLAVOR[k] ?? 0)) >= 6);
 }
 
 /** Common espresso faults, offered as chips when a shot is off/close. */
@@ -268,6 +268,44 @@ function Provenance({ coffee }: { coffee: Coffee }) {
 }
 
 // ---------------------------------------------------------------------------
+/**
+ * Renders a single adjustment change as a compact card: field label, an
+ * action headline (or "HOLD" badge when from === to), a labeled Now / Next
+ * comparison, and the reasoning as full-width body text.
+ */
+function ChangeCard({ change }: { change: AdjustmentChange }) {
+  const noOp = change.from.trim() === change.to.trim();
+  return (
+    <div className="change-card">
+      <div className="change-card-head">
+        <span className="change-field">{change.field}</span>
+        {noOp ? (
+          <span className="hold-badge">HOLD</span>
+        ) : (
+          <span className="change-badge">CHANGE</span>
+        )}
+      </div>
+
+      {noOp ? (
+        <div className="change-hold-value">{change.from}</div>
+      ) : (
+        <div className="change-nownext">
+          <div className="change-nownext-row">
+            <span className="change-nownext-label">Now</span>
+            <span className="change-nownext-val">{change.from}</span>
+          </div>
+          <div className="change-nownext-row change-nownext-next">
+            <span className="change-nownext-label">Next</span>
+            <span className="change-nownext-val">{change.to}</span>
+          </div>
+        </div>
+      )}
+
+      {change.why && <p className="change-why">{change.why}</p>}
+    </div>
+  );
+}
+
 function LockedRecipe({ coffee, onRedial }: { coffee: Coffee; onRedial: () => void }) {
   const r = coffee.lockedRecipe!;
   return (
@@ -627,19 +665,16 @@ function DialInRound({
             {advice.diagnosis && (
               <p style={{ marginTop: 8, fontSize: 14.5, lineHeight: 1.5 }}>{advice.diagnosis}</p>
             )}
-            {advice.changes.length > 0 && (
+            {advice.changes.length > 0 ? (
               <div style={{ marginTop: 14 }}>
                 {advice.changes.map((c, i) => (
-                  <div className="change-row" key={i}>
-                    <div className="change-field">{c.field}</div>
-                    <div className="change-arrow">
-                      <span>{c.from}</span>
-                      <span className="arrow-mark">→</span>
-                      <span>{c.to}</span>
-                    </div>
-                    {c.why && <p className="change-why">{c.why}</p>}
-                  </div>
+                  <ChangeCard key={i} change={c} />
                 ))}
+              </div>
+            ) : !advice.onTarget && (
+              <div className="change-empty">
+                <span className="hold-badge">HOLD</span>
+                <p>Nothing to change. Pull the same shot again — often a small puck-prep or temperature-surf difference is what closes the gap.</p>
               </div>
             )}
             {advice.predictedEffect && (
