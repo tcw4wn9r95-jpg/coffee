@@ -142,9 +142,20 @@ export function baselineRecipe(): Recipe {
 export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: Shot[]): Advice {
   const next: Recipe = { ...recipe };
   const changes: Advice["changes"] = [];
-  const sour = flavor.acidity - flavor.bitterness; // >0 leans sour/under
+  const sliderSour = flavor.acidity - flavor.bitterness; // >0 leans sour/under
   const tooFast = (recipe.timeSeconds ?? 28) < 22;
   const tooSlow = (recipe.timeSeconds ?? 28) > 34;
+
+  // Fault chips are the strongest signal — they encode a direct extraction
+  // verdict, regardless of whether the sliders were moved. Convert them into
+  // the same sour/bitter axis the rest of the logic uses.
+  const faults = (flavor.faults || []).map((f) => f.toLowerCase());
+  const hasAny = (...needles: string[]) => faults.some((f) => needles.some((n) => f.includes(n)));
+  let faultBias = 0;
+  if (hasAny("sour", "sharp", "weak", "watery")) faultBias += 25;
+  if (hasAny("bitter", "harsh", "dry", "ashy", "burnt")) faultBias -= 25;
+  if (hasAny("flat", "dull", "not sweet")) faultBias += 8; // usually slight under-extraction
+  const sour = sliderSour + faultBias;
 
   let diagnosis = "";
   if (flavor.verdict === "love") {
