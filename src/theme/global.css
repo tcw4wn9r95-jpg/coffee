@@ -712,6 +712,20 @@ input[type="range"].slider::-moz-range-thumb {
   line-height: 1.5;
 }
 
+/* Recalculate CTA when the user overrides dose or ratio */
+.refit-cta {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--clay-tint);
+  border: 1px solid var(--clay-soft);
+  border-radius: var(--radius-md);
+}
+.refit-cta p {
+  margin: 2px 0 0;
+}
+
 /* ---------- Misc ---------- */
 .stack > * + * {
   margin-top: 14px;

@@ -313,6 +313,69 @@ export function normalizeIdentity(raw: CoffeeIdentity | undefined): CoffeeIdenti
   };
 }
 
+/**
+ * Recompute grind / time / tamp / temperature / pre-infusion around a
+ * barista-fixed dose and ratio. Used by the "Recalculate" button when the user
+ * manually overrides dose or ratio and wants everything else re-tuned to fit.
+ */
+export async function refitRecipe(
+  coffee: Coffee,
+  overrides: { dose: number; ratio: string; yieldG: number }
+): Promise<Recipe> {
+  const targetLine =
+    `The barista has fixed dose = ${overrides.dose} g and ratio ${overrides.ratio} ` +
+    `(so yield = ${overrides.yieldG} g). Recompute the REST of the recipe — ` +
+    `grinderMacro, grinderMicro, timeSeconds, tamp, temperature, preInfusion — ` +
+    `so it makes sense at that dose and ratio for this coffee and gear. Keep ` +
+    `dose, yieldG, and ratio EXACTLY as given.`;
+  const text = await callClaude({
+    system: await withPalate(RECIPE_SYSTEM),
+    maxTokens: 2500,
+    content: [
+      {
+        type: "text",
+        text:
+          "Refit the recipe for a manual dose/ratio override. Return the SAME JSON " +
+          "shape (identity + recipe); keep identity fields, just recompute the recipe.\n\n" +
+          targetLine +
+          "\n\nCoffee:\n" +
+          JSON.stringify({ identity: pickIdentity(coffee) }),
+      },
+    ],
+  });
+  const parsed = extractJSON<{ recipe: Partial<Recipe> }>(text);
+  const fitted = coerceRecipe(parsed.recipe);
+  // Enforce the barista's fixed values — Claude may drift them by a gram or so.
+  return {
+    ...fitted,
+    dose: overrides.dose,
+    yieldG: overrides.yieldG,
+    ratio: overrides.ratio,
+  };
+}
+
+/** Pull just the identity fields we want to send to Claude, dropping the rest. */
+function pickIdentity(c: Coffee): CoffeeIdentity {
+  return {
+    name: c.name,
+    roaster: c.roaster,
+    origin: c.origin,
+    region: c.region,
+    producer: c.producer,
+    variety: c.variety,
+    species: c.species,
+    process: c.process,
+    altitude: c.altitude,
+    harvest: c.harvest,
+    roastLevel: c.roastLevel,
+    roastDate: c.roastDate,
+    decaf: c.decaf,
+    tastingNotes: c.tastingNotes,
+    website: c.website,
+    roasterGuidance: c.roasterGuidance,
+  };
+}
+
 /** When there's no photo — infer a recipe from typed coffee details. */
 export async function recipeFromText(
   identity: CoffeeIdentity

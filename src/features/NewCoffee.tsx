@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { processImageFile } from "../lib/image";
-import { analyzeCoffeePhoto, recipeFromText, ClaudeError } from "../lib/anthropic";
+import { analyzeCoffeePhoto, recipeFromText, refitRecipe, ClaudeError } from "../lib/anthropic";
 import { baselineRecipe } from "../lib/gear";
 import { putCoffee, putPhoto, putShot, uid } from "../lib/db";
 import type { Coffee, CoffeeIdentity, Recipe } from "../lib/types";
@@ -32,6 +32,7 @@ export function NewCoffee() {
   const [recommendedRatio, setRecommendedRatio] = useState(baselineRecipe().ratio);
   const [editing, setEditing] = useState(false);
   const [moreDetails, setMoreDetails] = useState(false);
+  const [refitBusy, setRefitBusy] = useState(false);
   const setId = (patch: Partial<CoffeeIdentity>) => setIdentity((p) => ({ ...p, ...patch }));
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -91,6 +92,31 @@ export function NewCoffee() {
     } catch {
       setRecipe(baselineRecipe());
       setStage("review");
+    }
+  }
+
+  async function refitFromDoseRatio(fixed: { dose: number; ratio: string; yieldG: number }) {
+    setRefitBusy(true);
+    try {
+      // Synthesise a Coffee shape from the current identity — the coffee
+      // itself isn't in the DB yet on this screen, but refitRecipe only reads
+      // identity fields.
+      const stub: Coffee = {
+        ...identity,
+        name: identity.name?.trim() || "Unknown coffee",
+        id: "stub",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        status: "dialing",
+      };
+      const refit = await refitRecipe(stub, fixed);
+      setRecipe(refit);
+      toast("Recipe recomputed for your dose & ratio");
+    } catch (e) {
+      const msg = e instanceof ClaudeError ? e.message : "Couldn't recompute — try again.";
+      toast(msg);
+    } finally {
+      setRefitBusy(false);
     }
   }
 
@@ -265,6 +291,8 @@ export function NewCoffee() {
               recipe={recipe}
               onChange={setRecipe}
               recommendedRatio={recommendedRatio}
+              onRefit={refitFromDoseRatio}
+              refitBusy={refitBusy}
             />
           ) : (
             <RecipeView r={recipe} />

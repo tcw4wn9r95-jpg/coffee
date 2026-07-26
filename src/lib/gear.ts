@@ -37,9 +37,10 @@ GRINDER — Fellow Opus (conical burr):
   · Inner micro-ring: turn toward the "−" mark for FINER (tighter burrs);
     toward "+" for COARSER (wider burrs). ALWAYS refer to the ring by its
     physical marking (− / +), never as "add micro" or "+1 micro".
-- Express a grind position as "macro · N ticks toward −", e.g. "Opus 2 · 1 tick toward −"
-  means macro 2, then the micro-ring rotated one tick toward the − mark (one micro-tick
-  finer than macro 2).
+- Express a grind position as "Macro N" or "Macro N · Micro −M", e.g. "Macro 2"
+  (macro click 2, no micro offset) or "Macro 2 · Micro −1" (macro 2 with the inner
+  ring rotated one tick toward the − mark — one micro-tick finer than Macro 2).
+  Do NOT prefix with "Opus" — the app already labels the grinder.
 - PRECISION: state every grind change as a DIRECTION + MAGNITUDE — e.g. "1 micro-tick
   finer, rotate the inner ring one tick toward − (⅓ click, ~17 µm)" or
   "1 full macro-click coarser, outer dial from 2 → 3 (~50 µm)". Near the target,
@@ -105,12 +106,10 @@ export function magnitude(
 }
 
 export function formatGrind(r: { grinderMacro: number; grinderMicro: number }): string {
-  // The micro-ring's − mark makes the grind finer. `grinderMicro` counts ticks
-  // toward that − mark, so display it with the minus sign to match the physical dial.
-  const micro = r.grinderMicro
-    ? ` · ${r.grinderMicro} tick${r.grinderMicro > 1 ? "s" : ""} toward −`
-    : "";
-  return `Opus ${r.grinderMacro}${micro}`;
+  // Compact, matches the physical dial: "Macro 2" or "Macro 2 · Micro −2".
+  // Ticks toward the − mark → finer, so we render with the minus sign.
+  const micro = r.grinderMicro ? ` · Micro −${r.grinderMicro}` : "";
+  return `Macro ${r.grinderMacro}${micro}`;
 }
 
 export function ratioLabel(dose: number, yieldG: number): string {
