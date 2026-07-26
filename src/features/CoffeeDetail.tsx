@@ -175,6 +175,16 @@ async function redial(
   toast("New dial-in started");
 }
 
+/**
+ * True if the barista actually engaged the flavor sliders — i.e. any axis is
+ * meaningfully off the neutral 50 default. Used to decide whether to skip the
+ * fault-chip step (since the sliders already say what was off).
+ */
+function slidersMoved(f: FlavorProfile): boolean {
+  const axes = [f.acidity, f.sweetness, f.bitterness, f.body, f.aftertaste, f.balance];
+  return axes.some((v) => Math.abs((v ?? 50) - 50) >= 6);
+}
+
 /** Common espresso faults, offered as chips when a shot is off/close. */
 const FAULTS = [
   "Too sour / sharp",
@@ -514,8 +524,8 @@ function DialInRound({
               </button>
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-              Tap what you tasted — Bruna weighs this against what the roaster
-              intends and fixes it.
+              You skipped the sliders — pick one or two things Bruna should
+              target.
             </p>
             <div className="chips">
               {FAULTS.map((f) => (
@@ -545,20 +555,22 @@ function DialInRound({
             <button
               className="btn btn-ghost"
               style={{ flex: 1 }}
-              onClick={() => {
-                setFaults([]);
-                setPendingVerdict("off");
-              }}
+              onClick={() =>
+                slidersMoved(flavor)
+                  ? finalize({ ...flavor, verdict: "off", faults: [] })
+                  : (setFaults([]), setPendingVerdict("off"))
+              }
             >
               Off
             </button>
             <button
               className="btn btn-ghost"
               style={{ flex: 1 }}
-              onClick={() => {
-                setFaults([]);
-                setPendingVerdict("close");
-              }}
+              onClick={() =>
+                slidersMoved(flavor)
+                  ? finalize({ ...flavor, verdict: "close", faults: [] })
+                  : (setFaults([]), setPendingVerdict("close"))
+              }
             >
               Close
             </button>
@@ -619,13 +631,13 @@ function DialInRound({
               <div style={{ marginTop: 14 }}>
                 {advice.changes.map((c, i) => (
                   <div className="change-row" key={i}>
-                    <div style={{ flex: 1 }}>
-                      <strong>{c.field}</strong>
-                      <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>{c.why}</div>
-                    </div>
+                    <div className="change-field">{c.field}</div>
                     <div className="change-arrow">
-                      {c.from} → {c.to}
+                      <span>{c.from}</span>
+                      <span className="arrow-mark">→</span>
+                      <span>{c.to}</span>
                     </div>
+                    {c.why && <p className="change-why">{c.why}</p>}
                   </div>
                 ))}
               </div>

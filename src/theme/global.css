@@ -617,21 +617,40 @@ input[type="range"].slider::-moz-range-thumb {
   font-size: 19px;
 }
 .change-row {
-  display: flex;
-  gap: 12px;
-  padding: 12px 0;
+  padding: 14px 0;
   border-top: 1px dashed var(--clay-soft);
 }
 .change-row:first-of-type {
   border-top: none;
 }
+.change-field {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--clay-deep);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
 .change-arrow {
   font-family: var(--serif);
-  color: var(--clay-deep);
+  font-size: 16px;
+  color: var(--ink);
   font-weight: 600;
-  text-align: right;
-  white-space: normal;
-  flex-shrink: 1;
+  line-height: 1.35;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.change-arrow .arrow-mark {
+  color: var(--clay);
+  font-weight: 700;
+}
+.change-why {
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin-top: 8px;
 }
 
 /* ---------- Misc ---------- */
