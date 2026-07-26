@@ -445,8 +445,8 @@ export async function suggestAdjustment(
   } catch (e) {
     // Graceful offline / error fallback so the loop still works.
     if (e instanceof ClaudeError) {
-      // Fall back to the built-in SCA-method engine so the loop still works.
-      return localAdjustment(current.recipe, current.flavor, all);
+      const fallback = localAdjustment(current.recipe, current.flavor, all);
+      return { ...fallback, fallbackReason: e.message };
     }
     throw e;
   }

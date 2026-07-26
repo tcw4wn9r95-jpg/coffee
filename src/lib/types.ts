@@ -93,6 +93,8 @@ export interface Advice {
   nextRecipe: Recipe;
   predictedEffect: string;
   source: "claude" | "local";
+  /** When source === "local", why Claude wasn't used (missing key, error, etc.). */
+  fallbackReason?: string;
 }
 
 export interface Shot {
