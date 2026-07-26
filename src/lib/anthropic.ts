@@ -76,6 +76,15 @@ async function callClaude(opts: {
     .filter((b: ContentBlock) => b.type === "text")
     .map((b: ContentBlock) => b.text)
     .join("\n");
+  // If Claude hit the max_tokens ceiling, the JSON is almost certainly
+  // truncated mid-object. Surface that as a clear, actionable error so the
+  // fallback banner tells the user what actually happened instead of a
+  // generic "Couldn't parse response".
+  if (data.stop_reason === "max_tokens") {
+    throw new ClaudeError(
+      `Claude ran out of tokens (max ${opts.maxTokens ?? 1024}) mid-response. Try again with a bigger buffer.`
+    );
+  }
   return text;
 }
 
@@ -86,12 +95,22 @@ function extractJSON<T>(text: string): T {
   if (fence) t = fence[1].trim();
   const start = t.indexOf("{");
   const end = t.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new ClaudeError("Claude didn't return JSON.");
+  if (start === -1 || end === -1) {
+    console.error("[Bruna] Claude returned non-JSON text:", text.slice(0, 400));
+    throw new ClaudeError("Claude didn't return JSON.");
+  }
   const slice = t.slice(start, end + 1);
   try {
     return JSON.parse(slice) as T;
-  } catch {
-    throw new ClaudeError("Couldn't parse Claude's response.");
+  } catch (parseErr) {
+    console.error(
+      "[Bruna] Couldn't parse Claude JSON. Slice:",
+      slice.slice(0, 600),
+      "Raw:",
+      text.slice(0, 800),
+      parseErr
+    );
+    throw new ClaudeError("Couldn't parse Claude's response — it may have been truncated.");
   }
 }
 
@@ -250,7 +269,7 @@ export async function analyzeCoffeePhoto(
   ];
   const text = await callClaude({
     system: await withPalate(RECIPE_SYSTEM),
-    maxTokens: url ? 2200 : 1500,
+    maxTokens: url ? 3500 : 2500,
     tools: url ? webFetchTool(url) : undefined,
     content,
   });
@@ -301,7 +320,7 @@ export async function recipeFromText(
   const url = normalizeUrl(identity.website);
   const text = await callClaude({
     system: await withPalate(RECIPE_SYSTEM),
-    maxTokens: url ? 1600 : 900,
+    maxTokens: url ? 3500 : 2500,
     tools: url ? webFetchTool(url) : undefined,
     content: [
       {
@@ -422,7 +441,10 @@ export async function suggestAdjustment(
   try {
     const text = await callClaude({
       system: await withPalate(ADJUST_SYSTEM),
-      maxTokens: 1000,
+      // 3000 is enough headroom for the full recipe JSON — with tamp,
+      // temperature, and pre-infusion prose the response often runs 1200-1800
+      // output tokens, and truncating anywhere in the JSON breaks parsing.
+      maxTokens: 3000,
       content: [
         {
           type: "text",
