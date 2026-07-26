@@ -222,14 +222,11 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
       why: "Pull sooner after the heat light cycles off to raise extraction.",
     });
   } else {
+    // Shot reads balanced but the barista wasn't in love. Rather than fake
+    // a "Hold grind" no-change change (which renders as "Opus 2 → Opus 2"),
+    // give a small workflow nudge and let the empty-changes case narrate.
     diagnosis =
-      "Pretty balanced. Small taste tweak: adjust yield slightly toward what you prefer, keep grind fixed.";
-    changes.push({
-      field: "Hold grind",
-      from: formatGrind(recipe),
-      to: formatGrind(recipe),
-      why: "You're in the zone — change only one small thing and re-taste.",
-    });
+      "This reads pretty balanced. Nothing needs a big move — pull the same shot again focusing on puck prep and temperature-surf timing before changing settings.";
   }
 
   next.ratio = ratioLabel(next.dose, next.yieldG);
