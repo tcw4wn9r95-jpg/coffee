@@ -46,6 +46,15 @@ GRINDER — Fellow Opus (conical burr):
   "1 full macro-click coarser, outer dial from 2 → 3 (~50 µm)". Near the target,
   move a single micro-tick at a time; never say "a bit finer/coarser" without the
   number and the physical direction.
+- CROSSING BOUNDARIES (very important — do not confuse the net direction with
+  the individual dial motions): going from "Macro 2 · Micro −0" one tick COARSER
+  lands you at "Macro 3 · Micro −2" (you click the outer dial from 2 → 3, then
+  rotate the inner ring 2 ticks TOWARD − to back off — net move is 1 tick
+  coarser). Conversely, going from "Macro 3 · Micro −0" one tick FINER lands at
+  "Macro 3 · Micro −1" (just rotate the ring 1 tick toward −). NEVER describe a
+  coarser move as "rotate the ring toward −" without also stating the macro
+  click, because on its own "toward −" always means finer. When macro and micro
+  change together, spell out BOTH steps in order.
 
 MACHINE — Lelit Anna PL41EM (base model, IMPORTANT: NO PID):
 - Single 250 ml brass boiler, 57 mm group, vibration pump, 3-way solenoid.
@@ -88,6 +97,41 @@ BASELINE (starting point, then adjust by taste):
 /** Absolute grind position in micro-ticks (higher = coarser; +micro = finer). */
 function gridPos(r: { grinderMacro: number; grinderMicro: number }): number {
   return r.grinderMacro * 3 - r.grinderMicro;
+}
+
+/**
+ * Describe the exact physical dial movements needed to get from one Opus
+ * position to another. Handles the cases where the macro AND micro change at
+ * the same time — a step that's net coarser can involve rotating the micro
+ * ring toward −, which the hardcoded "toward +" phrasing gets wrong.
+ */
+export function physicalMove(
+  from: { grinderMacro: number; grinderMicro: number },
+  to: { grinderMacro: number; grinderMicro: number }
+): string {
+  const dMacro = to.grinderMacro - from.grinderMacro;
+  const dMicro = to.grinderMicro - from.grinderMicro;
+  const parts: string[] = [];
+  if (dMacro > 0) {
+    parts.push(
+      `click the outer dial ${dMacro} step${dMacro > 1 ? "s" : ""} coarser (${from.grinderMacro} → ${to.grinderMacro})`
+    );
+  } else if (dMacro < 0) {
+    parts.push(
+      `click the outer dial ${-dMacro} step${-dMacro > 1 ? "s" : ""} finer (${from.grinderMacro} → ${to.grinderMacro})`
+    );
+  }
+  if (dMicro > 0) {
+    parts.push(
+      `rotate the inner ring ${dMicro} tick${dMicro > 1 ? "s" : ""} toward − (finer)`
+    );
+  } else if (dMicro < 0) {
+    parts.push(
+      `rotate the inner ring ${-dMicro} tick${-dMicro > 1 ? "s" : ""} toward + (coarser)`
+    );
+  }
+  if (parts.length === 0) return "hold the grind";
+  return parts.join(", then ");
 }
 
 /** Human magnitude of a grind move, e.g. "1 micro-tick (~17 µm)" or "1 click (~50 µm)". */
@@ -184,7 +228,7 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
       field: "Grind",
       from: formatGrind(recipe),
       to: formatGrind(next),
-      why: `${mag} finer (rotate the inner ring one tick toward −) → slower flow → less sour, more sweetness.`,
+      why: `${mag} finer — ${physicalMove(recipe, next)} → slower flow → less sour, more sweetness.`,
     });
   } else if (sour < -12 || tooSlow) {
     // over-extracted → coarser, by one micro-tick where possible
@@ -200,7 +244,7 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
       field: "Grind",
       from: formatGrind(recipe),
       to: formatGrind(next),
-      why: `${mag} coarser (rotate the inner ring one tick toward +) → faster flow → less bitter, cleaner finish.`,
+      why: `${mag} coarser — ${physicalMove(recipe, next)} → faster flow → less bitter, cleaner finish.`,
     });
   } else if (flavor.sweetness < 45) {
     // balanced but flat → nudge ratio / temp via workflow
