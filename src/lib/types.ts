@@ -8,9 +8,14 @@ export type RoastLevel =
 
 /** A full espresso recipe for the user's gear. */
 export interface Recipe {
-  /** Fellow Opus macro click (outer dial), typically 1–4 for espresso. */
+  /**
+   * Fellow Opus outer-dial CLICK, 1–41 — not the number printed on the dial.
+   * The 41 clicks span the printed 1…11, so 4 clicks per printed number
+   * (click 1 = printed 1, click 5 = printed 2). Espresso is clicks 1–7.
+   * See `unifiedGrind()` in lib/gear for the Beanie-app equivalent.
+   */
   grinderMacro: number;
-  /** Fellow Opus inner micro-ring ticks (0–2), 3 micro = 1 macro. */
+  /** Fellow Opus inner-ring ticks toward the "−" mark (0–2); 3 ticks = 1 click. */
   grinderMicro: number;
   dose: number; // grams in
   yieldG: number; // grams out

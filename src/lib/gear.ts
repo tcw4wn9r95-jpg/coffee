@@ -14,50 +14,141 @@ export const DEFAULT_GEAR: GearConfig = {
   basketMax: 20,
 };
 
+/**
+ * The Fellow Opus grind geometry, matching the Beanie app (the Opus-specific
+ * grind-size companion) so a setting means exactly the same thing in both.
+ *
+ * The physical dial:
+ *   · The outer dial has 41 detents ("clicks") spanning the PRINTED numbers
+ *     1 … 11 — so each printed number is 4 clicks apart, with 3 unnumbered
+ *     sub-clicks between each pair. One click ≈ 50 µm.
+ *   · The inner ring adds 3 micro-ticks per click (⅓ of a click, ≈16.7 µm).
+ *
+ * Beanie's UNIFIED GRIND SIZE is a single decimal on that printed-number
+ * scale: one click = 0.25, one micro-tick = 1/12 ≈ 0.083. Microns are simply
+ * 200 µm per unified point (= 4 clicks × 50 µm). Verified against the app:
+ * outer dial one sub-click past 1 with the ring one tick toward "+" reads
+ * "1.33 ~ 266 µm" — exactly 1.25 + 1/12 = 1.3333, ×200 = 266.7.
+ *
+ * `grinderMacro` in a Recipe is the outer-dial CLICK (1–41), NOT the printed
+ * number: click 1 = printed 1, click 5 = printed 2, click 41 = printed 11.
+ * `grinderMicro` is inner-ring ticks toward the "−" mark (0–2), i.e. finer.
+ *
+ * Caveat on the micron figures: this linear 50 µm/click model is Beanie's, and
+ * it matches the app exactly at the fine end where espresso lives. Extrapolated
+ * to the coarse end it overshoots Fellow's published 230–1160 µm range (click 41
+ * computes to 2200 µm), so treat microns as a comparison scale for dialling in,
+ * not a calibrated particle measurement.
+ */
 export const OPUS = {
-  macroTotal: 41, // 41 grind settings on the outer dial
+  clicksTotal: 41, // 41 detents on the outer dial
+  clicksPerNumber: 4, // printed numbers are 4 clicks apart (3 sub-clicks between)
+  dialNumberMax: 11, // outer dial is printed 1 … 11
+  microPerClick: 3, // inner ring: 3 micro-ticks per outer click
   micronsPerMacro: 50, // ≈50 µm per outer click
-  micronsPerMicro: 16.7, // inner blue ring: 3 micro per macro (≈16.7 µm)
-  espressoMacroLow: 1, // usable espresso zone lives at the very fine end
-  espressoMacroHigh: 4,
+  micronsPerMicro: 50 / 3, // inner ring tick ≈16.7 µm
+  micronsPerUnified: 200, // Beanie: one printed number ≈ 200 µm
+  espressoClickLow: 1, // usable espresso zone lives at the very fine end
+  espressoClickHigh: 8, // click 8 = unified 2.75 (~550 µm)
+  espressoUnifiedLow: 1.0, // published Opus espresso range, in Beanie units
+  espressoUnifiedHigh: 2.5,
 };
+
+/**
+ * Reference brew-method windows on Beanie's unified scale, from published Opus
+ * grind charts. Espresso-only app, but Claude uses these to know how narrow the
+ * espresso end really is (the whole espresso range is ~6 clicks wide).
+ */
+export const OPUS_BREW_RANGES: Array<[method: string, low: number, high: number]> = [
+  ["Espresso", 1, 2.5],
+  ["Moka pot", 2.5, 5.5],
+  ["AeroPress", 2, 8.75],
+  ["Pour over", 3, 8.5],
+  ["Drip", 2, 8],
+  ["French press", 6, 11],
+  ["Cold brew", 7.25, 11],
+];
+
+/** Printed outer-dial number for a click index (click 1 → 1, click 5 → 2). */
+export function dialNumber(click: number): number {
+  return 1 + (click - 1) / OPUS.clicksPerNumber;
+}
+
+/** Beanie "unified grind size" — one decimal covering both dials. */
+export function unifiedGrind(r: { grinderMacro: number; grinderMicro: number }): number {
+  return dialNumber(r.grinderMacro) - r.grinderMicro / (OPUS.clicksPerNumber * OPUS.microPerClick);
+}
+
+/** Approximate particle size for a setting, the way Beanie reports it. */
+export function grindMicrons(r: { grinderMacro: number; grinderMicro: number }): number {
+  return Math.floor(unifiedGrind(r) * OPUS.micronsPerUnified);
+}
+
+/** The unified number as Beanie prints it, e.g. "1.33". */
+export function unifiedLabel(r: { grinderMacro: number; grinderMicro: number }): string {
+  return unifiedGrind(r).toFixed(2);
+}
+
+/**
+ * Where to physically put the two dials, in the terms printed on the grinder:
+ * "dial 2" (a numbered detent), "dial 1 +2" (2 sub-clicks past the printed 1),
+ * with the inner ring offset appended when it isn't at zero.
+ */
+export function dialLabel(r: { grinderMacro: number; grinderMicro: number }): string {
+  const whole = Math.floor((r.grinderMacro - 1) / OPUS.clicksPerNumber) + 1;
+  const sub = (r.grinderMacro - 1) % OPUS.clicksPerNumber;
+  const outer = sub ? `dial ${whole} +${sub}` : `dial ${whole}`;
+  return r.grinderMicro ? `${outer}, ring −${r.grinderMicro}` : outer;
+}
 
 /** The knowledge block injected into Claude prompts. Plain, factual, sourced. */
 export const GEAR_BRIEF = `THE BARISTA'S GEAR (ground truth — never contradict this):
 
-GRINDER — Fellow Opus (conical burr):
-- Outer dial: numbered positions (~1 to 11) with 3 small unnumbered sub-click
-  detents between each numbered pair. Always express macro settings as a
-  NUMBERED position (e.g. "Macro 2"), not as a sub-click — the barista lands on
-  a number by feel/sight and uses the inner ring for anything finer. An inner
-  blue micro-ring gives 3 further sub-steps per macro click (~16.7 µm each) —
-  this micro-ring is the real dial-in tool for espresso.
-- Espresso lives at the VERY fine end of the Opus: macro 1–4. Many units need
-  ~1.5–3.0. The Opus is capable but marginal for espresso, so small moves
-  matter — prefer changing the micro-ring (1 tick) before a whole macro click.
+GRINDER — Fellow Opus (conical burr). The geometry below matches the Beanie
+app (the Opus-specific grind-size companion) — use its numbers exactly:
+- Outer dial: 41 detents ("clicks") spanning the PRINTED numbers 1 to 11, so
+  each printed number is 4 clicks apart with 3 unnumbered sub-click detents
+  between each pair. One click ≈ 50 µm. grinderMacro is the CLICK (1–41), not
+  the printed number: click 1 = printed 1, click 5 = printed 2, click 41 =
+  printed 11. Never assume "macro 2" means the printed 2 — it is click 2, i.e.
+  one sub-click past the printed 1.
+- Inner ring: 3 micro-ticks per click (⅓ click, ~16.7 µm each). This ring is
+  the real dial-in tool for espresso.
+- UNIFIED GRIND SIZE (Beanie's single number, on the printed-number scale):
+  one click = 0.25, one micro-tick = 1/12 ≈ 0.083, and microns ≈ 200 µm per
+  unified point. Example: outer dial one sub-click past 1 with the ring one
+  tick toward "+" = 1.33 ≈ 266 µm.
+- Espresso lives at the VERY fine end: unified 1.0–2.5 (≈200–500 µm), i.e.
+  clicks 1–7. That whole window is only ~6 clicks wide, so small moves matter —
+  prefer one micro-tick (~17 µm) before a whole click (~50 µm). Typical Opus
+  espresso lands near unified 1.2–1.6. For reference, pour over is unified
+  3–8.5 and French press 6–11 — nowhere near where you should be.
 - DIRECTION on the physical dials:
-  · Outer macro dial: LOWER number = finer, higher number = coarser.
+  · Outer dial: LOWER = finer, higher = coarser.
   · Inner micro-ring: turn toward the "−" mark for FINER (tighter burrs);
     toward "+" for COARSER (wider burrs). ALWAYS refer to the ring by its
     physical marking (− / +), never as "add micro" or "+1 micro".
-- Express a grind position as "Macro N" or "Macro N · Micro −M", e.g. "Macro 2"
-  (macro click 2, no micro offset) or "Macro 2 · Micro −1" (macro 2 with the inner
-  ring rotated one tick toward the − mark — one micro-tick finer than Macro 2).
-  Do NOT prefix with "Opus" — the app already labels the grinder.
+- Express a grind position the way Beanie does — the unified size, then where
+  the two dials physically sit: "1.25 · dial 1 +1" is click 2 (one sub-click
+  past the printed 1) with the ring at zero; "1.17 · dial 1 +1, ring −1" is the
+  same click with the ring one tick toward −. Do NOT prefix with "Opus" — the
+  app already labels the grinder.
 - PRECISION: state every grind change as a DIRECTION + MAGNITUDE — e.g. "1 micro-tick
   finer, rotate the inner ring one tick toward − (⅓ click, ~17 µm)" or
-  "1 full macro-click coarser, outer dial from 2 → 3 (~50 µm)". Near the target,
+  "1 full click coarser, outer dial one sub-click along (~50 µm)". Near the target,
   move a single micro-tick at a time; never say "a bit finer/coarser" without the
   number and the physical direction.
 - CROSSING BOUNDARIES (very important — do not confuse the net direction with
-  the individual dial motions): going from "Macro 2 · Micro −0" one tick COARSER
-  lands you at "Macro 3 · Micro −2" (you click the outer dial from 2 → 3, then
-  rotate the inner ring 2 ticks TOWARD − to back off — net move is 1 tick
-  coarser). Conversely, going from "Macro 3 · Micro −0" one tick FINER lands at
-  "Macro 3 · Micro −1" (just rotate the ring 1 tick toward −). NEVER describe a
-  coarser move as "rotate the ring toward −" without also stating the macro
-  click, because on its own "toward −" always means finer. When macro and micro
-  change together, spell out BOTH steps in order.
+  the individual dial motions): from click 2 with the ring at zero (1.25), one
+  tick COARSER lands at click 3 with the ring 2 ticks toward − (1.33) — you
+  click the outer dial one detent along, then rotate the ring 2 ticks TOWARD −
+  to back off; the net move is one tick coarser. Conversely, from click 3 with
+  the ring at zero (1.50), one tick FINER is just the ring 1 tick toward −
+  (1.42), same click. NEVER describe a coarser move as "rotate the ring toward
+  −" without also stating the outer click, because on its own "toward −" always
+  means finer. When the click and the ring change together, spell out BOTH
+  steps in order — and let the unified number confirm the net direction
+  (coarser = larger unified size).
 
 MACHINE — Lelit Anna PL41EM (base model, IMPORTANT: NO PID):
 - Single 250 ml brass boiler, 57 mm group, vibration pump, 3-way solenoid.
@@ -115,13 +206,15 @@ export function physicalMove(
   const dMacro = to.grinderMacro - from.grinderMacro;
   const dMicro = to.grinderMicro - from.grinderMicro;
   const parts: string[] = [];
+  const outerFrom = dialLabel({ grinderMacro: from.grinderMacro, grinderMicro: 0 });
+  const outerTo = dialLabel({ grinderMacro: to.grinderMacro, grinderMicro: 0 });
   if (dMacro > 0) {
     parts.push(
-      `click the outer dial ${dMacro} step${dMacro > 1 ? "s" : ""} coarser (${from.grinderMacro} → ${to.grinderMacro})`
+      `click the outer dial ${dMacro} detent${dMacro > 1 ? "s" : ""} coarser (${outerFrom} → ${outerTo})`
     );
   } else if (dMacro < 0) {
     parts.push(
-      `click the outer dial ${-dMacro} step${-dMacro > 1 ? "s" : ""} finer (${from.grinderMacro} → ${to.grinderMacro})`
+      `click the outer dial ${-dMacro} detent${-dMacro > 1 ? "s" : ""} finer (${outerFrom} → ${outerTo})`
     );
   }
   if (dMicro > 0) {
@@ -152,11 +245,13 @@ export function magnitude(
   return `${parts.join(" + ")} (~${Math.round(d * OPUS.micronsPerMicro)} µm)`;
 }
 
+/**
+ * Compact readout in Beanie's terms: the unified grind size first (the number
+ * you compare between coffees), then where the two dials physically sit —
+ * "1.25 · dial 1 +1" or "1.17 · dial 1 +1, ring −1".
+ */
 export function formatGrind(r: { grinderMacro: number; grinderMicro: number }): string {
-  // Compact, matches the physical dial: "Macro 2" or "Macro 2 · Micro −2".
-  // Ticks toward the − mark → finer, so we render with the minus sign.
-  const micro = r.grinderMicro ? ` · Micro −${r.grinderMicro}` : "";
-  return `Macro ${r.grinderMacro}${micro}`;
+  return `${unifiedLabel(r)} · ${dialLabel(r)}`;
 }
 
 export function ratioLabel(dose: number, yieldG: number): string {
@@ -222,7 +317,7 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
     if (next.grinderMicro < 2) next.grinderMicro += 1;
     else {
       next.grinderMicro = 0;
-      next.grinderMacro = Math.max(OPUS.espressoMacroLow, next.grinderMacro - 1);
+      next.grinderMacro = Math.max(OPUS.espressoClickLow, next.grinderMacro - 1);
     }
     const mag = magnitude(recipe, next);
     diagnosis =
@@ -238,7 +333,7 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
     if (next.grinderMicro > 0) next.grinderMicro -= 1;
     else {
       next.grinderMicro = 2;
-      next.grinderMacro = Math.min(OPUS.espressoMacroHigh, next.grinderMacro + 1);
+      next.grinderMacro = Math.min(OPUS.espressoClickHigh, next.grinderMacro + 1);
     }
     const mag = magnitude(recipe, next);
     diagnosis =

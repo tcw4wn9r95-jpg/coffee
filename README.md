@@ -12,9 +12,14 @@ keeping. The next bag of that coffee is instant.
 
 Every recommendation is grounded in the real hardware — not guessed:
 
-- **Fellow Opus** grinder — 41 macro clicks (~50 µm) + inner micro-ring
-  (~16.7 µm/tick, 3 per click). Espresso lives at the very fine end (macro 1–4);
-  the micro-ring is the real dial-in tool.
+- **Fellow Opus** grinder — 41 outer-dial clicks (~50 µm each) spanning the
+  numbers printed on the dial, 1 → 11, so each printed number is 4 clicks apart.
+  The inner ring adds 3 micro-ticks per click (~16.7 µm). Bruna reports grind the
+  way the **Beanie** app does — one *unified grind size* covering both dials
+  (1 click = 0.25, 1 micro-tick = 1/12, ≈200 µm per point) plus the µm estimate,
+  so a setting here and a setting in Beanie are the same number. Espresso lives
+  at the very fine end: unified 1.0–2.5 (clicks 1–7, ≈200–500 µm), which is why
+  the micro-ring — not the outer dial — is the real dial-in tool.
 - **Lelit Anna PL41EM** — single brass boiler, **no PID**, 57 mm group, 3-way
   solenoid, gauge green zone 8–12 bar, manual/line pre-infusion only. Because
   there's no PID, temperature is coached as **warm-up + temperature-surfing**,
@@ -22,8 +27,10 @@ Every recommendation is grounded in the real hardware — not guessed:
 - **Bottomless 18–20 g portafilter** — 18 g dose, 1:2 ratio, 25–32 s baseline,
   with channeling coaching.
 
-Sources: Fellow Opus espresso guidance, Lelit Anna manual / Home-Barista threads,
-SCA cupping & dial-in method, Clive Coffee and Perfect Daily Grind.
+Sources: Fellow Opus espresso guidance, the Beanie grind-size app (unified grind
+size / micron model), Honest Coffee Guide and 9 Bar Benchmark Opus grind charts,
+Lelit Anna manual / Home-Barista threads, SCA cupping & dial-in method, Clive
+Coffee and Perfect Daily Grind.
 
 ## How Claude is used
 

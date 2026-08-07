@@ -1,4 +1,4 @@
-import { GEAR_BRIEF, baselineRecipe, localAdjustment } from "./gear";
+import { GEAR_BRIEF, baselineRecipe, localAdjustment, unifiedLabel, grindMicrons } from "./gear";
 import { getPalateBrief } from "./palate";
 import { loadSettings } from "./settings";
 import type { Advice, Coffee, CoffeeIdentity, Recipe, Shot } from "./types";
@@ -226,7 +226,7 @@ Respond with STRICT JSON only, no prose, in exactly this shape:
     "tastingNotes": string[]       // flavour notes printed on the bag (preferred), else inferred
   },
   "recipe": {
-    "grinderMacro": number,        // Opus outer click, 1-4 for espresso (lower = finer)
+    "grinderMacro": number,        // Opus outer-dial CLICK 1-41 (NOT the printed number; 4 clicks per printed number). Espresso = 1-7, typically 2-4. Lower = finer.
     "grinderMicro": number,        // Opus inner ticks TOWARD THE "−" MARK, 0-2 (finer)
     "dose": number,                // grams, 18-20
     "yieldG": number,              // grams out
@@ -443,8 +443,11 @@ going for jasmine and stone fruit, but you're getting bitterness — that's
 over-extraction masking the florals"), and move toward it. If the roaster gave a
 brew recommendation, honour it within this gear's limits.
 
-GRIND PRECISION (important): the Opus adjusts in macro clicks (~50 µm) and inner
-micro-ticks (⅓ of a click, ~17 µm). ALWAYS state a grind change as an explicit
+GRIND PRECISION (important): the Opus adjusts in outer-dial clicks (~50 µm) and
+inner micro-ticks (⅓ of a click, ~17 µm). grinderMacro is the CLICK (1-41), and
+4 clicks make up one number printed on the dial — the whole espresso window is
+clicks 1-7 (Beanie unified 1.0-2.5, ~200-500 µm), so never jump more than a
+click or two. ALWAYS state a grind change as an explicit
 DIRECTION + MAGNITUDE in Opus terms — e.g. "1 micro-tick finer (⅓ click, ~17 µm)"
 or "1 full click coarser (~50 µm)". Near the target, prefer single micro-tick
 moves; only jump a whole click when the shot is far off. Never say "a bit finer"
@@ -473,7 +476,7 @@ function shotSummary(shots: Shot[]): string {
     .map((s, i) => {
       const f = s.flavor;
       const faults = f.faults?.length ? ` faults=[${f.faults.join(", ")}]` : "";
-      return `Shot ${i + 1}: grind Opus ${s.recipe.grinderMacro}+${s.recipe.grinderMicro}micro, ${s.recipe.dose}g→${s.recipe.yieldG}g in ${s.actual.timeSeconds ?? s.recipe.timeSeconds}s. Taste[acid ${f.acidity} sweet ${f.sweetness} bitter ${f.bitterness} body ${f.body} after ${f.aftertaste} balance ${f.balance}] verdict=${f.verdict}${faults}. ${s.actual.observations || ""}`.trim();
+      return `Shot ${i + 1}: grind ${unifiedLabel(s.recipe)} (~${grindMicrons(s.recipe)}µm; outer click ${s.recipe.grinderMacro}, ring −${s.recipe.grinderMicro}), ${s.recipe.dose}g→${s.recipe.yieldG}g in ${s.actual.timeSeconds ?? s.recipe.timeSeconds}s. Taste[acid ${f.acidity} sweet ${f.sweetness} bitter ${f.bitterness} body ${f.body} after ${f.aftertaste} balance ${f.balance}] verdict=${f.verdict}${faults}. ${s.actual.observations || ""}`.trim();
     })
     .join("\n");
 }

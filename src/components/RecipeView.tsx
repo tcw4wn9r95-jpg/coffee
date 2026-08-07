@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Recipe } from "../lib/types";
-import { formatGrind } from "../lib/gear";
+import { dialLabel, formatGrind, grindMicrons, unifiedLabel } from "../lib/gear";
 import { OpusDial } from "./OpusDial";
 
 export function RecipeView({ r }: { r: Recipe }) {
@@ -9,19 +9,16 @@ export function RecipeView({ r }: { r: Recipe }) {
     <div>
       <div className="spec-grid">
         <div className="spec">
-          <div className="spec-label">Grind</div>
+          <div className="spec-label">Grind size</div>
           <div className="spec-value">
-            <span style={{ fontSize: 14, letterSpacing: "0.02em" }}>Macro</span>{" "}
-            {r.grinderMacro}
-            {r.grinderMicro ? (
-              <>
-                {" · "}
-                <span style={{ fontSize: 14, letterSpacing: "0.02em" }}>Micro</span>{" "}
-                <span>−{r.grinderMicro}</span>
-              </>
-            ) : null}
+            {unifiedLabel(r)}{" "}
+            <span style={{ fontSize: 14, letterSpacing: "0.02em" }}>
+              ~{grindMicrons(r)} µm
+            </span>
           </div>
-          <div className="spec-note">Fellow Opus — inner ring toward − mark for finer</div>
+          <div className="spec-note">
+            Opus {dialLabel(r)} — inner ring toward − mark for finer
+          </div>
           <button
             type="button"
             className="link-btn"
