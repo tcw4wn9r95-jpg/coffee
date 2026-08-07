@@ -26,9 +26,12 @@ export const OPUS = {
 export const GEAR_BRIEF = `THE BARISTA'S GEAR (ground truth — never contradict this):
 
 GRINDER — Fellow Opus (conical burr):
-- 41 macro clicks on the outer dial (~50 µm per click). An inner blue micro-ring
-  gives 3 finer sub-steps per macro click (~16.7 µm each) — this micro-ring is
-  the real dial-in tool for espresso.
+- Outer dial: numbered positions (~1 to 11) with 3 small unnumbered sub-click
+  detents between each numbered pair. Always express macro settings as a
+  NUMBERED position (e.g. "Macro 2"), not as a sub-click — the barista lands on
+  a number by feel/sight and uses the inner ring for anything finer. An inner
+  blue micro-ring gives 3 further sub-steps per macro click (~16.7 µm each) —
+  this micro-ring is the real dial-in tool for espresso.
 - Espresso lives at the VERY fine end of the Opus: macro 1–4. Many units need
   ~1.5–3.0. The Opus is capable but marginal for espresso, so small moves
   matter — prefer changing the micro-ring (1 tick) before a whole macro click.
