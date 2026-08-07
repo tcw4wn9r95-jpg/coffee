@@ -47,14 +47,34 @@ export function OpusDial({
     >
       {/* ---------- OUTER DIAL (macro) ---------- */}
       <text x="140" y="16" textAnchor="middle" fontSize="10" letterSpacing="0.12em" fontWeight="700" fill="var(--ink-soft)">
-        OUTER DIAL · MACRO CLICK
+        OUTER DIAL · NUMBERED POSITIONS
       </text>
       <text x="140" y="30" textAnchor="middle" fontSize="9.5" fill="var(--ink-soft)" opacity="0.75">
-        ~50 µm per click · espresso range shown
+        3 small sub-clicks between each number · espresso zone shown
       </text>
 
       {/* connecting line under the dots */}
       <line x1={macroX[0]} y1="58" x2={macroX[3]} y2="58" stroke="var(--ink-soft)" strokeWidth="1.2" opacity="0.35" />
+
+      {/* Sub-clicks (unnumbered detents) between each pair of numbered positions
+          — 3 short tick marks per gap, matching the physical Opus dial. */}
+      {[0, 1, 2].map((i) => {
+        const a = macroX[i];
+        const b = macroX[i + 1];
+        const gap = (b - a) / 4;
+        return [1, 2, 3].map((k) => (
+          <line
+            key={`sub-${i}-${k}`}
+            x1={a + gap * k}
+            y1="54"
+            x2={a + gap * k}
+            y2="62"
+            stroke="var(--ink-soft)"
+            strokeWidth="1"
+            opacity="0.45"
+          />
+        ));
+      })}
 
       {macroLabels.map((n, i) => {
         const active = i === macroIdx;
@@ -63,10 +83,10 @@ export function OpusDial({
             <circle
               cx={macroX[i]}
               cy="58"
-              r={active ? 7 : 4}
+              r={active ? 7 : 4.5}
               fill={active ? "var(--clay)" : "var(--surface)"}
               stroke={active ? "var(--clay)" : "var(--ink-soft)"}
-              strokeWidth="1.4"
+              strokeWidth="1.6"
             />
             <text
               x={macroX[i]}
