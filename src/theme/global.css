@@ -289,6 +289,15 @@ a {
   min-height: 84px;
 }
 
+/* Draggable scales in the Opus grind picker. The browser's default focus ring
+   is a hard black box over the scale; keep the indicator (these are real
+   sliders, reachable by keyboard) but draw it in the app's own hand. */
+svg [role="slider"]:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: -3px;
+  rx: 10px;
+}
+
 /* Read-only computed value (e.g. auto-calculated yield) styled like an input. */
 .input-readout {
   display: flex;

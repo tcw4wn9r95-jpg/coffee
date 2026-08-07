@@ -188,9 +188,23 @@ BASELINE (starting point, then adjust by taste):
   shorter ratio). Change ONE variable at a time; keep dose & yield fixed while
   chasing grind, so taste changes are attributable.`;
 
-/** Absolute grind position in micro-ticks (higher = coarser; +micro = finer). */
-function gridPos(r: { grinderMacro: number; grinderMicro: number }): number {
-  return r.grinderMacro * 3 - r.grinderMicro;
+/** Every burr gap the Opus can hold, counted in micro-ticks: 41 clicks × 3. */
+export const OPUS_TICKS_MAX = OPUS.clicksTotal * OPUS.microPerClick;
+
+/**
+ * Absolute grind position in micro-ticks, 1 … 123 (higher = coarser). This is
+ * the one number both dials move along — the outer click steps it by 3, the
+ * inner ring by 1 — which is what makes a single drag-anywhere picker possible.
+ */
+export function ticksTotal(r: { grinderMacro: number; grinderMicro: number }): number {
+  return r.grinderMacro * OPUS.microPerClick - r.grinderMicro;
+}
+
+/** Inverse of `ticksTotal` — the canonical click/ring pair for a tick position. */
+export function fromTicks(t: number): { grinderMacro: number; grinderMicro: number } {
+  const clamped = Math.min(OPUS_TICKS_MAX, Math.max(1, Math.round(t)));
+  const grinderMacro = Math.ceil(clamped / OPUS.microPerClick);
+  return { grinderMacro, grinderMicro: grinderMacro * OPUS.microPerClick - clamped };
 }
 
 /**
@@ -235,7 +249,7 @@ export function magnitude(
   from: { grinderMacro: number; grinderMicro: number },
   to: { grinderMacro: number; grinderMicro: number }
 ): string {
-  const d = Math.abs(gridPos(to) - gridPos(from));
+  const d = Math.abs(ticksTotal(to) - ticksTotal(from));
   if (d === 0) return "a hair";
   const clicks = Math.floor(d / 3);
   const micros = d % 3;

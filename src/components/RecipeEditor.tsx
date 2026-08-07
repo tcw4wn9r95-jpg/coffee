@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Recipe } from "../lib/types";
-import { dialLabel, grindMicrons, unifiedLabel } from "../lib/gear";
+import { OpusDial } from "./OpusDial";
 
 /**
  * A freely-typeable dose input. Keeps its own text state so you can clear it,
@@ -144,13 +144,19 @@ export function RecipeEditor({
 
   return (
     <div className="card card-pad stack">
-      <div className="muted" style={{ fontSize: 13 }}>
-        Grind <strong>{unifiedLabel(recipe)}</strong> · ~{grindMicrons(recipe)} µm ·{" "}
-        {dialLabel(recipe)}
+      <div>
+        <span className="field-label">Grind</span>
+        <OpusDial
+          macro={recipe.grinderMacro}
+          micro={recipe.grinderMicro}
+          size={300}
+          onChange={set}
+        />
+        <p className="muted" style={{ fontSize: 12, textAlign: "center", marginTop: 2 }}>
+          Drag either scale — or tap a mark — to move the dials.
+        </p>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {numField("Outer click", recipe.grinderMacro, 1, 1, 41, (n) => set({ grinderMacro: n }))}
-        {numField("Inner ring (−N)", recipe.grinderMicro, 1, 0, 2, (n) => set({ grinderMicro: n }))}
         <DoseField value={recipe.dose} onChange={setDose} />
 
         <label className="field" style={{ marginTop: 0 }}>
