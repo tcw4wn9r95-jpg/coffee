@@ -30,9 +30,17 @@ export const DEFAULT_GEAR: GearConfig = {
  * outer dial one sub-click past 1 with the ring one tick toward "+" reads
  * "1.33 ~ 266 µm" — exactly 1.25 + 1/12 = 1.3333, ×200 = 266.7.
  *
- * `grinderMacro` in a Recipe is the outer-dial CLICK (1–41), NOT the printed
- * number: click 1 = printed 1, click 5 = printed 2, click 41 = printed 11.
- * `grinderMicro` is inner-ring ticks toward the "−" mark (0–2), i.e. finer.
+ * The two dials are INDEPENDENT, exactly as they are on the machine: turning
+ * the inner ring does not move the outer dial, and vice versa. A Recipe stores
+ * each one as the barista left it:
+ *   · `grinderMacro` — the outer-dial CLICK (1–41), NOT the printed number:
+ *     click 1 = printed 1, click 5 = printed 2, click 41 = printed 11.
+ *   · `grinderMicro` — the inner ring's offset from that click, in ticks toward
+ *     the "−" mark, so POSITIVE is finer and NEGATIVE (toward "+") is coarser.
+ *     The ring turns up to a full click either way: −3 … +3.
+ * Never "normalise" a setting by folding ring travel onto the outer dial —
+ * (click 5, ring −3) and (click 4, ring 0) are the same burr gap, but they are
+ * different dial positions, and the barista is looking at the dials.
  *
  * Caveat on the micron figures: this linear 50 µm/click model is Beanie's, and
  * it matches the app exactly at the fine end where espresso lives. Extrapolated
@@ -45,6 +53,7 @@ export const OPUS = {
   clicksPerNumber: 4, // printed numbers are 4 clicks apart (3 sub-clicks between)
   dialNumberMax: 11, // outer dial is printed 1 … 11
   microPerClick: 3, // inner ring: 3 micro-ticks per outer click
+  ringTravel: 3, // the ring turns up to one full click either side of the dial
   micronsPerMacro: 50, // ≈50 µm per outer click
   micronsPerMicro: 50 / 3, // inner ring tick ≈16.7 µm
   micronsPerUnified: 200, // Beanie: one printed number ≈ 200 µm
@@ -98,7 +107,24 @@ export function dialLabel(r: { grinderMacro: number; grinderMicro: number }): st
   const whole = Math.floor((r.grinderMacro - 1) / OPUS.clicksPerNumber) + 1;
   const sub = (r.grinderMacro - 1) % OPUS.clicksPerNumber;
   const outer = sub ? `dial ${whole} +${sub}` : `dial ${whole}`;
-  return r.grinderMicro ? `${outer}, ring −${r.grinderMicro}` : outer;
+  return r.grinderMicro ? `${outer}, ${ringLabel(r.grinderMicro)}` : outer;
+}
+
+/** The ring by its physical marking: toward "−" is finer, toward "+" coarser. */
+export function ringLabel(micro: number): string {
+  if (!micro) return "ring 0";
+  return micro > 0 ? `ring −${micro}` : `ring +${-micro}`;
+}
+
+/** Clamp a pair to what the two dials can physically hold. */
+export function clampGrind(r: { grinderMacro: number; grinderMicro: number }) {
+  return {
+    grinderMacro: Math.min(OPUS.clicksTotal, Math.max(1, Math.round(r.grinderMacro))),
+    grinderMicro: Math.min(
+      OPUS.ringTravel,
+      Math.max(-OPUS.ringTravel, Math.round(r.grinderMicro))
+    ),
+  };
 }
 
 /** The knowledge block injected into Claude prompts. Plain, factual, sourced. */
@@ -112,8 +138,17 @@ app (the Opus-specific grind-size companion) — use its numbers exactly:
   the printed number: click 1 = printed 1, click 5 = printed 2, click 41 =
   printed 11. Never assume "macro 2" means the printed 2 — it is click 2, i.e.
   one sub-click past the printed 1.
-- Inner ring: 3 micro-ticks per click (⅓ click, ~16.7 µm each). This ring is
-  the real dial-in tool for espresso.
+- Inner ring: an OFFSET from that click, 3 micro-ticks per click (⅓ click,
+  ~16.7 µm each), turning up to a full click either way — grinderMicro is
+  -3..+3, POSITIVE toward the "−" mark (finer), NEGATIVE toward "+" (coarser).
+  This ring is the real dial-in tool for espresso.
+- THE TWO DIALS ARE INDEPENDENT. Turning the ring does NOT move the outer dial,
+  and clicking the dial does NOT move the ring — the barista reads both off the
+  machine. So never "tidy up" a setting by folding ring travel onto the outer
+  dial: click 5 with ring −3 and click 4 with ring 0 are the same burr gap, but
+  they are different dial positions, and you must leave the one you were given
+  alone unless you are deliberately moving it. Change grinderMacro only when
+  you mean the barista to click the outer dial.
 - UNIFIED GRIND SIZE (Beanie's single number, on the printed-number scale):
   one click = 0.25, one micro-tick = 1/12 ≈ 0.083, and microns ≈ 200 µm per
   unified point. Example: outer dial one sub-click past 1 with the ring one
@@ -131,24 +166,24 @@ app (the Opus-specific grind-size companion) — use its numbers exactly:
 - Express a grind position the way Beanie does — the unified size, then where
   the two dials physically sit: "1.25 · dial 1 +1" is click 2 (one sub-click
   past the printed 1) with the ring at zero; "1.17 · dial 1 +1, ring −1" is the
-  same click with the ring one tick toward −. Do NOT prefix with "Opus" — the
+  same click with the ring one tick toward −; "1.33 · dial 1 +1, ring +1" is
+  that click with the ring one tick toward +. Do NOT prefix with "Opus" — the
   app already labels the grinder.
 - PRECISION: state every grind change as a DIRECTION + MAGNITUDE — e.g. "1 micro-tick
   finer, rotate the inner ring one tick toward − (⅓ click, ~17 µm)" or
   "1 full click coarser, outer dial one sub-click along (~50 µm)". Near the target,
   move a single micro-tick at a time; never say "a bit finer/coarser" without the
   number and the physical direction.
-- CROSSING BOUNDARIES (very important — do not confuse the net direction with
-  the individual dial motions): from click 2 with the ring at zero (1.25), one
-  tick COARSER lands at click 3 with the ring 2 ticks toward − (1.33) — you
-  click the outer dial one detent along, then rotate the ring 2 ticks TOWARD −
-  to back off; the net move is one tick coarser. Conversely, from click 3 with
-  the ring at zero (1.50), one tick FINER is just the ring 1 tick toward −
-  (1.42), same click. NEVER describe a coarser move as "rotate the ring toward
-  −" without also stating the outer click, because on its own "toward −" always
-  means finer. When the click and the ring change together, spell out BOTH
-  steps in order — and let the unified number confirm the net direction
-  (coarser = larger unified size).
+- HOW TO MAKE A SMALL MOVE: reach for the ring first, and leave the outer dial
+  alone. From click 2 with the ring at zero (1.25), one tick coarser is simply
+  the ring one tick toward + (ring +1, 1.33) — the outer dial stays on click 2.
+  One tick finer is the ring one tick toward − (ring −1, 1.17). Only when the
+  ring has run out of travel (±3) do you click the outer dial, and then you
+  back the ring off by 3 to keep the net move small: from click 2 · ring −3,
+  one more tick finer is click 1 · ring −1. When both dials move, spell out
+  BOTH steps in order, and let the unified number confirm the net direction
+  (coarser = larger unified size). NEVER describe a coarser move as "rotate the
+  ring toward −": on its own "toward −" always means finer.
 
 MACHINE — Lelit Anna PL41EM (base model, IMPORTANT: NO PID):
 - Single 250 ml brass boiler, 57 mm group, vibration pump, 3-way solenoid.
@@ -188,23 +223,49 @@ BASELINE (starting point, then adjust by taste):
   shorter ratio). Change ONE variable at a time; keep dose & yield fixed while
   chasing grind, so taste changes are attributable.`;
 
-/** Every burr gap the Opus can hold, counted in micro-ticks: 41 clicks × 3. */
-export const OPUS_TICKS_MAX = OPUS.clicksTotal * OPUS.microPerClick;
-
 /**
- * Absolute grind position in micro-ticks, 1 … 123 (higher = coarser). This is
- * the one number both dials move along — the outer click steps it by 3, the
- * inner ring by 1 — which is what makes a single drag-anywhere picker possible.
+ * Resulting burr gap in micro-ticks (higher = coarser) — the outer click worth
+ * 3, the ring worth 1 each. Used to compare two settings and size the move
+ * between them. It is NOT a position the dials get set from: several dial
+ * pairs give the same gap, and which pair you're at is the barista's business,
+ * not ours to rewrite.
  */
 export function ticksTotal(r: { grinderMacro: number; grinderMicro: number }): number {
   return r.grinderMacro * OPUS.microPerClick - r.grinderMicro;
 }
 
-/** Inverse of `ticksTotal` — the canonical click/ring pair for a tick position. */
-export function fromTicks(t: number): { grinderMacro: number; grinderMicro: number } {
-  const clamped = Math.min(OPUS_TICKS_MAX, Math.max(1, Math.round(t)));
-  const grinderMacro = Math.ceil(clamped / OPUS.microPerClick);
-  return { grinderMacro, grinderMicro: grinderMacro * OPUS.microPerClick - clamped };
+/**
+ * One tick finer, moving the ring by preference and only clicking the outer
+ * dial once the ring has run out of travel — which is how you'd do it by hand.
+ * `floor` bounds the outer dial (the espresso window, not the grinder's).
+ */
+export function stepFiner<T extends { grinderMacro: number; grinderMicro: number }>(
+  r: T,
+  floor = 1
+): T {
+  if (r.grinderMicro < OPUS.ringTravel) return { ...r, grinderMicro: r.grinderMicro + 1 };
+  if (r.grinderMacro > floor)
+    return {
+      ...r,
+      grinderMacro: r.grinderMacro - 1,
+      grinderMicro: r.grinderMicro + 1 - OPUS.microPerClick,
+    };
+  return r; // as fine as this range goes
+}
+
+/** One tick coarser — the mirror of `stepFiner`. */
+export function stepCoarser<T extends { grinderMacro: number; grinderMicro: number }>(
+  r: T,
+  ceiling = OPUS.clicksTotal
+): T {
+  if (r.grinderMicro > -OPUS.ringTravel) return { ...r, grinderMicro: r.grinderMicro - 1 };
+  if (r.grinderMacro < ceiling)
+    return {
+      ...r,
+      grinderMacro: r.grinderMacro + 1,
+      grinderMicro: r.grinderMicro - 1 + OPUS.microPerClick,
+    };
+  return r;
 }
 
 /**
@@ -327,12 +388,8 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
 
   // Priority 1: grind, driven by sour↔bitter balance and flow speed.
   if (sour > 12 || tooFast) {
-    // under-extracted → finer, by one micro-tick where possible
-    if (next.grinderMicro < 2) next.grinderMicro += 1;
-    else {
-      next.grinderMicro = 0;
-      next.grinderMacro = Math.max(OPUS.espressoClickLow, next.grinderMacro - 1);
-    }
+    // under-extracted → finer, one ring tick where the ring still has travel
+    Object.assign(next, stepFiner(next, OPUS.espressoClickLow));
     const mag = magnitude(recipe, next);
     diagnosis =
       "Reads under-extracted (sour / thin / fast flow). Tightening the grind slows the water and pulls more sweetness and body.";
@@ -343,12 +400,8 @@ export function localAdjustment(recipe: Recipe, flavor: FlavorProfile, _shots: S
       why: `${mag} finer — ${physicalMove(recipe, next)} → slower flow → less sour, more sweetness.`,
     });
   } else if (sour < -12 || tooSlow) {
-    // over-extracted → coarser, by one micro-tick where possible
-    if (next.grinderMicro > 0) next.grinderMicro -= 1;
-    else {
-      next.grinderMicro = 2;
-      next.grinderMacro = Math.min(OPUS.espressoClickHigh, next.grinderMacro + 1);
-    }
+    // over-extracted → coarser, one ring tick where the ring still has travel
+    Object.assign(next, stepCoarser(next, OPUS.espressoClickHigh));
     const mag = magnitude(recipe, next);
     diagnosis =
       "Reads over-extracted (bitter / dry / slow flow). Opening the grind speeds the shot and pulls back the bitterness.";

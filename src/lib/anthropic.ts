@@ -1,4 +1,4 @@
-import { GEAR_BRIEF, baselineRecipe, localAdjustment, unifiedLabel, grindMicrons } from "./gear";
+import { GEAR_BRIEF, baselineRecipe, localAdjustment, unifiedLabel, grindMicrons, ringLabel } from "./gear";
 import { getPalateBrief } from "./palate";
 import { loadSettings } from "./settings";
 import type { Advice, Coffee, CoffeeIdentity, Recipe, Shot } from "./types";
@@ -121,7 +121,7 @@ function coerceRecipe(raw: Partial<Recipe> | undefined): Recipe {
   const yieldG = num(raw.yieldG, base.yieldG);
   return {
     grinderMacro: clamp(num(raw.grinderMacro, base.grinderMacro), 1, 41),
-    grinderMicro: clamp(num(raw.grinderMicro, base.grinderMicro), 0, 2),
+    grinderMicro: clamp(num(raw.grinderMicro, base.grinderMicro), -3, 3),
     dose,
     yieldG,
     ratio: raw.ratio || `1:${(yieldG / dose).toFixed(1)}`,
@@ -227,7 +227,7 @@ Respond with STRICT JSON only, no prose, in exactly this shape:
   },
   "recipe": {
     "grinderMacro": number,        // Opus outer-dial CLICK 1-41 (NOT the printed number; 4 clicks per printed number). Espresso = 1-7, typically 2-4. Lower = finer.
-    "grinderMicro": number,        // Opus inner ticks TOWARD THE "−" MARK, 0-2 (finer)
+    "grinderMicro": number,        // Opus inner-ring offset in ticks: POSITIVE = toward "−" (finer), NEGATIVE = toward "+" (coarser), -3..3. Independent of grinderMacro.
     "dose": number,                // grams, 18-20
     "yieldG": number,              // grams out
     "ratio": string,               // e.g. "1:2"
@@ -476,7 +476,7 @@ function shotSummary(shots: Shot[]): string {
     .map((s, i) => {
       const f = s.flavor;
       const faults = f.faults?.length ? ` faults=[${f.faults.join(", ")}]` : "";
-      return `Shot ${i + 1}: grind ${unifiedLabel(s.recipe)} (~${grindMicrons(s.recipe)}µm; outer click ${s.recipe.grinderMacro}, ring −${s.recipe.grinderMicro}), ${s.recipe.dose}g→${s.recipe.yieldG}g in ${s.actual.timeSeconds ?? s.recipe.timeSeconds}s. Taste[acid ${f.acidity} sweet ${f.sweetness} bitter ${f.bitterness} body ${f.body} after ${f.aftertaste} balance ${f.balance}] verdict=${f.verdict}${faults}. ${s.actual.observations || ""}`.trim();
+      return `Shot ${i + 1}: grind ${unifiedLabel(s.recipe)} (~${grindMicrons(s.recipe)}µm; outer click ${s.recipe.grinderMacro}, ${ringLabel(s.recipe.grinderMicro)}), ${s.recipe.dose}g→${s.recipe.yieldG}g in ${s.actual.timeSeconds ?? s.recipe.timeSeconds}s. Taste[acid ${f.acidity} sweet ${f.sweetness} bitter ${f.bitterness} body ${f.body} after ${f.aftertaste} balance ${f.balance}] verdict=${f.verdict}${faults}. ${s.actual.observations || ""}`.trim();
     })
     .join("\n");
 }

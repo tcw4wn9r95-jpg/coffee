@@ -15,7 +15,12 @@ export interface Recipe {
    * See `unifiedGrind()` in lib/gear for the Beanie-app equivalent.
    */
   grinderMacro: number;
-  /** Fellow Opus inner-ring ticks toward the "−" mark (0–2); 3 ticks = 1 click. */
+  /**
+   * Fellow Opus inner-ring offset from that click, in ticks toward the "−"
+   * mark: POSITIVE is finer, NEGATIVE (toward "+") is coarser, −3…+3 (the ring
+   * turns a full click either way; 3 ticks = 1 click). Independent of
+   * `grinderMacro` — turning the ring does not move the outer dial.
+   */
   grinderMicro: number;
   dose: number; // grams in
   yieldG: number; // grams out
