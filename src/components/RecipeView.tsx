@@ -82,7 +82,7 @@ export function RecipeView({
           />
           {onChange && (
             <p className="muted" style={{ fontSize: 12, textAlign: "center", marginTop: 2 }}>
-              Drag either scale — or tap a mark — to move the dials.
+              Drag the top dial for big steps · tap or drag the bottom ring to fine-tune
             </p>
           )}
         </div>
