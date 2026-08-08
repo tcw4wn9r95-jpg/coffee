@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   deleteCoffee,
@@ -356,18 +356,50 @@ function DialInRound({
   const [faults, setFaults] = useState<string[]>([]);
   const [refitBusy, setRefitBusy] = useState(false);
 
+  // A recipe edit that's been shown but not yet written (see saveRecipeEdit).
+  const pendingRecipe = useRef<Recipe | null>(null);
+  const persistTimer = useRef<number | null>(null);
+
+  const flushRecipe = useCallback(() => {
+    if (persistTimer.current) {
+      window.clearTimeout(persistTimer.current);
+      persistTimer.current = null;
+    }
+    const next = pendingRecipe.current;
+    pendingRecipe.current = null;
+    if (next) void putShot({ ...openShot, recipe: next });
+  }, [openShot]);
+
+  // Don't lose an edit if the barista navigates away mid-gesture.
+  useEffect(() => flushRecipe, [flushRecipe]);
+
   const roundNo = history.length + 1;
 
-  async function saveRecipeEdit(next: Recipe) {
+  /** Persist immediately — for edits that arrive one at a time. */
+  async function commitRecipe(next: Recipe) {
     setRecipe(next);
     await putShot({ ...openShot, recipe: next });
+  }
+
+  /**
+   * Show the edit now, save it a beat later. Dragging the grind dial fires a
+   * change per detent, and firing off an un-awaited write for each one lets
+   * them land out of order — the last value written wouldn't reliably be the
+   * one on screen. Coalescing to a single write after the gesture settles fixes
+   * that and spares the phone the churn.
+   */
+  function saveRecipeEdit(next: Recipe) {
+    setRecipe(next);
+    pendingRecipe.current = next;
+    if (persistTimer.current) window.clearTimeout(persistTimer.current);
+    persistTimer.current = window.setTimeout(flushRecipe, 300);
   }
 
   async function refitFromDoseRatio(fixed: { dose: number; ratio: string; yieldG: number }) {
     setRefitBusy(true);
     try {
       const refit = await refitRecipe(coffee, fixed);
-      await saveRecipeEdit(refit);
+      await commitRecipe(refit);
       toast("Recipe recomputed for your dose & ratio");
     } catch (e) {
       const msg = e instanceof ClaudeError ? e.message : "Couldn't recompute — try again.";
@@ -459,7 +491,7 @@ function DialInRound({
               refitBusy={refitBusy}
             />
           ) : (
-            <RecipeView r={recipe} />
+            <RecipeView r={recipe} onChange={saveRecipeEdit} />
           )}
         </div>
         <button

@@ -295,7 +295,7 @@ export function NewCoffee() {
               refitBusy={refitBusy}
             />
           ) : (
-            <RecipeView r={recipe} />
+            <RecipeView r={recipe} onChange={setRecipe} />
           )}
         </div>
 

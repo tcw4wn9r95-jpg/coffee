@@ -3,7 +3,18 @@ import type { Recipe } from "../lib/types";
 import { dialLabel, formatGrind, grindMicrons, unifiedLabel } from "../lib/gear";
 import { OpusDial } from "./OpusDial";
 
-export function RecipeView({ r }: { r: Recipe }) {
+export function RecipeView({
+  r,
+  onChange,
+}: {
+  r: Recipe;
+  /**
+   * Provide for the recipe you're about to pull, and the dial map becomes the
+   * grind control itself. Without it the map is read-only — correct for a
+   * locked recipe or Bruna's proposed next one, which aren't yours to drag.
+   */
+  onChange?: (next: Recipe) => void;
+}) {
   const [showDial, setShowDial] = useState(false);
   return (
     <div>
@@ -25,7 +36,7 @@ export function RecipeView({ r }: { r: Recipe }) {
             style={{ fontSize: 12, marginTop: 4 }}
             onClick={() => setShowDial((s) => !s)}
           >
-            {showDial ? "Hide" : "Show"} dial map
+            {showDial ? "Hide" : onChange ? "Adjust grind" : "Show dial map"}
           </button>
         </div>
         <div className="spec">
@@ -63,7 +74,17 @@ export function RecipeView({ r }: { r: Recipe }) {
       </div>
       {showDial && (
         <div className="card card-pad" style={{ marginTop: 10 }}>
-          <OpusDial macro={r.grinderMacro} micro={r.grinderMicro} size={280} />
+          <OpusDial
+            macro={r.grinderMacro}
+            micro={r.grinderMicro}
+            size={280}
+            onChange={onChange ? (g) => onChange({ ...r, ...g }) : undefined}
+          />
+          {onChange && (
+            <p className="muted" style={{ fontSize: 12, textAlign: "center", marginTop: 2 }}>
+              Drag either scale — or tap a mark — to move the dials.
+            </p>
+          )}
         </div>
       )}
       {r.notes ? (

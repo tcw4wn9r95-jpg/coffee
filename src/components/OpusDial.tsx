@@ -38,57 +38,64 @@ const CX = 140;
 const COARSE_STEP = 20; // px per outer click — drag distance matches the scale
 const FINE_STEP = 26; // px per micro-tick
 
+const TAP_SLOP = 5; // px of travel below which a gesture counts as a tap
+
 /**
- * Turns horizontal drags into discrete steps, and a tap into a jump. Travel is
- * matched 1:1 to the drawn spacing so the scale tracks the finger exactly, and
- * steps are emitted as you cross each detent rather than on release — the
- * readout keeps up with the drag, which is what makes it feel mechanical.
+ * Turns a horizontal drag into detent steps, and a tap into a jump.
+ *
+ * Travel is matched 1:1 to the drawn spacing so the scale tracks the finger,
+ * and each position is mapped ABSOLUTELY from where the drag began rather than
+ * accumulated per event — the scale can't drift out of sync with the finger,
+ * and it can't stall on a stale value part-way through a long drag.
+ *
+ * The move/up listeners go on the window rather than the element: pointer
+ * capture on SVG nodes is unreliable (notably in iOS Safari, where a failed
+ * capture would silently kill the whole gesture), and window listeners keep the
+ * drag alive when the finger wanders off the row.
  */
 function useScaleDrag(
   stepPx: number,
-  onStep: (delta: number) => void,
-  onTap: (delta: number) => void
+  /** Micro-ticks moved per detent of this scale: 3 for a click, 1 for a ring tick. */
+  unit: number,
+  ticksRef: React.MutableRefObject<number>,
+  applyRef: React.MutableRefObject<(t: number) => void>
 ) {
-  const drag = useRef<{ x0: number; acc: number; moved: number } | null>(null);
   const [active, setActive] = useState(false);
 
-  const end = (e: React.PointerEvent<SVGRectElement>) => {
-    const d = drag.current;
-    drag.current = null;
-    setActive(false);
-    if (!d || d.moved >= 5) return; // it was a drag, already applied
-    const svg = e.currentTarget.ownerSVGElement;
-    if (!svg) return;
-    const box = svg.getBoundingClientRect();
-    if (!box.width) return;
-    const svgX = ((e.clientX - box.left) / box.width) * VIEW_W;
-    const delta = Math.round((svgX - CX) / stepPx);
-    if (delta) onTap(delta);
+  const onPointerDown = (e: React.PointerEvent<SVGRectElement>) => {
+    if (e.button > 0) return; // primary button / any touch only
+    const x0 = e.clientX;
+    const t0 = ticksRef.current;
+    const el = e.currentTarget;
+    let moved = 0;
+    setActive(true);
+
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - x0;
+      moved = Math.max(moved, Math.abs(dx));
+      // Drag right → the scale slides right → finer values reach the centre.
+      applyRef.current(t0 - Math.round(dx / stepPx) * unit);
+    };
+
+    const end = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      setActive(false);
+      if (moved >= TAP_SLOP) return; // a drag — already applied
+      const box = el.ownerSVGElement?.getBoundingClientRect();
+      if (!box?.width) return;
+      const svgX = ((ev.clientX - box.left) / box.width) * VIEW_W;
+      const delta = Math.round((svgX - CX) / stepPx);
+      if (delta) applyRef.current(t0 + delta * unit);
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
   };
 
-  return {
-    active,
-    handlers: {
-      onPointerDown: (e: React.PointerEvent<SVGRectElement>) => {
-        e.currentTarget.setPointerCapture(e.pointerId);
-        drag.current = { x0: e.clientX, acc: 0, moved: 0 };
-        setActive(true);
-      },
-      onPointerMove: (e: React.PointerEvent<SVGRectElement>) => {
-        const d = drag.current;
-        if (!d) return;
-        const dx = e.clientX - d.x0;
-        d.moved = Math.max(d.moved, Math.abs(dx));
-        const steps = Math.trunc((dx - d.acc) / stepPx);
-        if (steps) {
-          d.acc += steps * stepPx;
-          onStep(-steps); // drag right → scale slides right → finer values
-        }
-      },
-      onPointerUp: end,
-      onPointerCancel: end,
-    },
-  };
+  return { active, onPointerDown };
 }
 
 export function OpusDial({
@@ -122,8 +129,15 @@ export function OpusDial({
   const stepClicks = (d: number) => setTicks(ticks + d * OPUS.microPerClick);
   const stepMicro = (d: number) => setTicks(ticks + d);
 
-  const coarse = useScaleDrag(COARSE_STEP, stepClicks, stepClicks);
-  const fine = useScaleDrag(FINE_STEP, stepMicro, stepMicro);
+  // A drag reads these on every pointer event, long after the render that
+  // started it, so they must always hold the latest value and setter.
+  const ticksRef = useRef(ticks);
+  ticksRef.current = ticks;
+  const applyRef = useRef(setTicks);
+  applyRef.current = setTicks;
+
+  const coarse = useScaleDrag(COARSE_STEP, OPUS.microPerClick, ticksRef, applyRef);
+  const fine = useScaleDrag(FINE_STEP, 1, ticksRef, applyRef);
 
   const arrowKeys = (step: (d: number) => void) => (e: React.KeyboardEvent) => {
     const d = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
@@ -141,7 +155,7 @@ export function OpusDial({
   ) =>
     interactive
       ? {
-          ...row.handlers,
+          onPointerDown: row.onPointerDown,
           onKeyDown: arrowKeys(step),
           tabIndex: 0,
           role: "slider" as const,
@@ -150,7 +164,13 @@ export function OpusDial({
           "aria-valuemax": max,
           "aria-valuenow": now,
           "aria-valuetext": `${unifiedLabel(here)}, ${dialLabel(here)}`,
-          style: { touchAction: "pan-y" as const, cursor: "ew-resize" },
+          // `none`, not `pan-y`: a diagonal drag would otherwise be claimed by
+          // the browser as a scroll and cancel the gesture mid-turn.
+          style: {
+            touchAction: "none" as const,
+            cursor: "ew-resize",
+            userSelect: "none" as const,
+          },
         }
       : {};
 
